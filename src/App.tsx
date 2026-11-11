@@ -354,8 +354,60 @@ export default function App() {
           return;
         }
 
-        // Basemap satelit menggunakan Esri World Imagery (HD Satellite CDN Cepat, Bebas Lag & Tanpa Kotak Hitam)
-        // Garis bibir sungai 2010 (kuning) dan 2020 (pink) otomatis diselaraskan sesuai tombol tahun yang dipilih
+        // Kembalikan ke satelit historis GEE asli untuk tahun 2010 dan 2020
+        if (tiles?.tileSat2010 && map.getSource("base-sat-2010")) {
+          try {
+            const isVis = baseRef.current === "sat-2010" ? "visible" : "none";
+            if (map.getLayer("base-sat-2010")) map.removeLayer("base-sat-2010");
+            map.removeSource("base-sat-2010");
+            map.addSource("base-sat-2010", {
+              type: "raster",
+              tiles: [tiles.tileSat2010],
+              tileSize: 256,
+              maxzoom: 18,
+              attribution: "Google Earth Engine · Landsat 2010 True Color",
+            });
+            const firstId = map.getStyle().layers?.[0]?.id;
+            map.addLayer(
+              {
+                id: "base-sat-2010",
+                type: "raster",
+                source: "base-sat-2010",
+                layout: { visibility: isVis },
+              },
+              firstId
+            );
+          } catch (e) {
+            console.warn("[INARivers] Gagal memperbarui base-sat-2010:", e);
+          }
+        }
+
+        if (tiles?.tileSat2020 && map.getSource("base-sat-2020")) {
+          try {
+            const isVis = baseRef.current === "sat-2020" ? "visible" : "none";
+            if (map.getLayer("base-sat-2020")) map.removeLayer("base-sat-2020");
+            map.removeSource("base-sat-2020");
+            map.addSource("base-sat-2020", {
+              type: "raster",
+              tiles: [tiles.tileSat2020],
+              tileSize: 256,
+              maxzoom: 18,
+              attribution: "Google Earth Engine · Landsat 8 2020 True Color",
+            });
+            const firstId = map.getStyle().layers?.[0]?.id;
+            map.addLayer(
+              {
+                id: "base-sat-2020",
+                type: "raster",
+                source: "base-sat-2020",
+                layout: { visibility: isVis },
+              },
+              firstId
+            );
+          } catch (e) {
+            console.warn("[INARivers] Gagal memperbarui base-sat-2020:", e);
+          }
+        }
 
         // Layer 1: Dinamika Pergeseran (Erosi & Akresi)
         if (tiles?.tileChange && !map.getSource("gee-src-change")) {
