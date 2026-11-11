@@ -150,7 +150,8 @@ export default function App() {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const pendingFly = useRef<River | null>(null);
 
-  const [page, setPage] = useState<"dashboard" | "map">("map");
+  const [page, setPage] = useState<"dashboard" | "map">("dashboard");
+  const [dashIsland, setDashIsland] = useState<string>("Semua");
   const [dataStatus, setDataStatus] = useState<DataStatus>("loading");
   const [ready, setReady] = useState(false);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -334,10 +335,57 @@ export default function App() {
 
         // Update basemap satelit dengan tile resmi dari backend jika ada
         if (tiles.tileSat2010 && map.getSource("base-sat-2010")) {
-          (map.getSource("base-sat-2010") as any).setTiles?.([tiles.tileSat2010]);
+          try {
+            const isVis = baseRef.current === "sat-2010" ? "visible" : "none";
+            if (map.getLayer("base-sat-2010")) map.removeLayer("base-sat-2010");
+            map.removeSource("base-sat-2010");
+            map.addSource("base-sat-2010", {
+              type: "raster",
+              tiles: [tiles.tileSat2010],
+              tileSize: 256,
+              maxzoom: 18,
+              attribution: "Google Earth Engine · Landsat 2010 True Color",
+            });
+            const firstId = map.getStyle().layers?.[0]?.id;
+            map.addLayer(
+              {
+                id: "base-sat-2010",
+                type: "raster",
+                source: "base-sat-2010",
+                layout: { visibility: isVis },
+              },
+              firstId
+            );
+          } catch (e) {
+            console.warn("[INARivers] Gagal memperbarui base-sat-2010:", e);
+          }
         }
+
         if (tiles.tileSat2020 && map.getSource("base-sat-2020")) {
-          (map.getSource("base-sat-2020") as any).setTiles?.([tiles.tileSat2020]);
+          try {
+            const isVis = baseRef.current === "sat-2020" ? "visible" : "none";
+            if (map.getLayer("base-sat-2020")) map.removeLayer("base-sat-2020");
+            map.removeSource("base-sat-2020");
+            map.addSource("base-sat-2020", {
+              type: "raster",
+              tiles: [tiles.tileSat2020],
+              tileSize: 256,
+              maxzoom: 18,
+              attribution: "Google Earth Engine · Landsat 8 2020 True Color",
+            });
+            const firstId = map.getStyle().layers?.[0]?.id;
+            map.addLayer(
+              {
+                id: "base-sat-2020",
+                type: "raster",
+                source: "base-sat-2020",
+                layout: { visibility: isVis },
+              },
+              firstId
+            );
+          } catch (e) {
+            console.warn("[INARivers] Gagal memperbarui base-sat-2020:", e);
+          }
         }
 
         // Layer 1: Dinamika Pergeseran (Erosi & Akresi)
@@ -415,7 +463,8 @@ export default function App() {
   /* ============ DASHBOARD ============ */
   if (page === "dashboard") {
     const totalSeg = RIVERS.reduce((a, r) => a + r.segmentCount, 0);
-    const ranked = [...RIVERS].sort((a, b) => Math.abs(b.avgRate) - Math.abs(a.avgRate)).slice(0, 8);
+    const dashFilteredRivers = dashIsland === "Semua" ? RIVERS : RIVERS.filter((r) => r.island === dashIsland);
+    const ranked = [...dashFilteredRivers].sort((a, b) => Math.abs(b.avgRate) - Math.abs(a.avgRate)).slice(0, 8);
     const maxAbs = Math.max(...ranked.map((r) => Math.abs(r.avgRate)), 0.01);
     const eroding = RIVERS.filter((r) => r.avgRate > 0).length;
     const accreting = RIVERS.length - eroding;
@@ -491,13 +540,73 @@ export default function App() {
             <h1>Pergeseran Bibir Sungai <span className="hero-gradient">Se-Indonesia</span></h1>
             <p>Pemantauan erosi tebing & sedimentasi pada <b>{RIVERS.length} sungai utama</b> Indonesia menggunakan citra satelit Landsat resolusi 30 meter, membandingkan tahun <b>2010</b> dengan <b>2020</b>.</p>
             <div className="hero-actions">
-              <button className="btn primary lg" onClick={() => setPage("map")}>
-                Jelajahi Peta →
+              <button className="btn primary lg" onClick={() => setPage("map")} style={{ boxShadow: "0 0 24px rgba(34, 211, 238, 0.35)", fontWeight: 600 }}>
+                Buka Peta Interaktif →
               </button>
               <button className="btn lg" style={{ background: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)" }}
-                onClick={() => { const el = document.getElementById("dash-ranking"); el?.scrollIntoView({ behavior: "smooth" }); }}>
-                Lihat Peringkat
+                onClick={() => { const el = document.getElementById("dash-features"); el?.scrollIntoView({ behavior: "smooth" }); }}>
+                Pelajari Data
               </button>
+            </div>
+          </section>
+
+          {/* Tiga Komponen Analisis Visual Showcase */}
+          <section id="dash-features" style={{ marginBottom: "36px" }}>
+            <div style={{ marginBottom: "16px" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 600, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>
+                <span>🛰️</span> Data Spasial Multitemporal
+              </div>
+              <h2 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 4px", color: "var(--text)" }}>Tiga Komponen Analisis Bibir Sungai</h2>
+              <p style={{ margin: 0, fontSize: "13px", color: "var(--muted)" }}>Memadukan deteksi garis air historis 2010 vs 2020 serta kalkulasi perubahan morfologi tebing dari citra Landsat 30m.</p>
+            </div>
+
+            <div className="feature-cards-grid">
+              <div className="feature-card feat-2010">
+                <div>
+                  <div className="feat-head">
+                    <div className="feat-icon" style={{ background: "rgba(251, 191, 36, 0.15)", color: "#fbbf24" }}>📅</div>
+                    <span className="feat-badge" style={{ background: "rgba(251, 191, 36, 0.15)", color: "#fbbf24" }}>Tahun 2010</span>
+                  </div>
+                  <div className="feat-title">Bibir Sungai 2010 (Awal)</div>
+                  <div className="feat-desc">Garis batas tepi perairan sungai 10 tahun lalu, diekstraksi dari citra Landsat 7 dan JRC Global Surface Water 30m bebas awan.</div>
+                </div>
+                <div style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#fbbf24", fontWeight: 600 }}>
+                  <span style={{ width: 14, height: 3, background: "#fbbf24", borderRadius: "2px" }} /> Garis Kuning Emas
+                </div>
+              </div>
+
+              <div className="feature-card feat-2020">
+                <div>
+                  <div className="feat-head">
+                    <div className="feat-icon" style={{ background: "rgba(255, 34, 85, 0.15)", color: "#ff2255" }}>🛰️</div>
+                    <span className="feat-badge" style={{ background: "rgba(255, 34, 85, 0.15)", color: "#ff2255" }}>Tahun 2020</span>
+                  </div>
+                  <div className="feat-title">Bibir Sungai 2020 (Terbaru)</div>
+                  <div className="feat-desc">Garis batas tepi perairan sungai terkini, dihitung dari Landsat 8 Surface Reflectance untuk mendeteksi perubahan alur sungai.</div>
+                </div>
+                <div style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#ff2255", fontWeight: 600 }}>
+                  <span style={{ width: 14, height: 3, background: "#ff2255", borderRadius: "2px" }} /> Garis Pink Terang
+                </div>
+              </div>
+
+              <div className="feature-card feat-dyn">
+                <div>
+                  <div className="feat-head">
+                    <div className="feat-icon" style={{ background: "rgba(34, 211, 238, 0.15)", color: "#22d3ee" }}>⚡</div>
+                    <span className="feat-badge" style={{ background: "rgba(239, 68, 68, 0.15)", color: "#ef4444" }}>10 Tahun Dinamika</span>
+                  </div>
+                  <div className="feat-title">Zona Erosi & Akresi</div>
+                  <div className="feat-desc">Kalkulasi perbedaan spasial tebing: zona tanah runtuh terbawa arus (Erosi) vs daratan timbul baru dari endapan lumpur (Akresi).</div>
+                </div>
+                <div style={{ marginTop: "16px", display: "flex", gap: "14px", fontSize: "12px", fontWeight: 600 }}>
+                  <span style={{ color: "#ef4444", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ width: 8, height: 8, background: "#ef4444", borderRadius: "2px" }} /> Erosi (Merah)
+                  </span>
+                  <span style={{ color: "#06b6d4", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ width: 8, height: 8, background: "#06b6d4", borderRadius: "2px" }} /> Akresi (Cyan)
+                  </span>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -540,8 +649,24 @@ export default function App() {
             {/* LEFT: Ranking sungai */}
             <section className="card">
               <div className="card-head">
-                <h2>📊 Peringkat Laju Pergeseran</h2>
-                <span className="card-badge">Top {ranked.length}</span>
+                <div>
+                  <h2 style={{ margin: "0 0 4px" }}>📊 Peringkat Pergeseran Sungai</h2>
+                  <div style={{ fontSize: "12px", color: "var(--muted)" }}>Pilih pulau untuk menyaring sungai, klik nama sungai untuk melihat di peta</div>
+                </div>
+                <span className="card-badge">{ranked.length} Sungai</span>
+              </div>
+
+              {/* Island Filter Pills */}
+              <div className="dash-pills">
+                {["Semua", "Kalimantan", "Sumatera", "Jawa", "Sulawesi", "Papua"].map((isl) => (
+                  <button
+                    key={isl}
+                    className={`dash-pill ${dashIsland === isl ? "active" : ""}`}
+                    onClick={() => setDashIsland(isl)}
+                  >
+                    {isl} {isl === "Semua" ? `(${RIVERS.length})` : `(${RIVERS.filter((r) => r.island === isl).length})`}
+                  </button>
+                ))}
               </div>
               <div className="ranking-list">
                 {ranked.map((r, i) => (
