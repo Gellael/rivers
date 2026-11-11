@@ -293,7 +293,16 @@ export default function App() {
         if (map.getSource("gee-src-2010")) return;
 
         // Ambil token tile secara aman melalui Backend API di Vercel / Localhost
-        const apiBase = (import.meta.env.VITE_API_URL || "http://localhost:8080").replace(/\/$/, "");
+        const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+        const queryBackend = urlParams?.get("backend");
+        const storedBackend = typeof window !== "undefined" ? localStorage.getItem("INARIVERS_BACKEND_URL") : null;
+        if (queryBackend) {
+          localStorage.setItem("INARIVERS_BACKEND_URL", queryBackend);
+        }
+
+        const isLocalhost = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+        const defaultBackend = isLocalhost ? "http://localhost:8080" : "https://riverbe.vercel.app";
+        const apiBase = (queryBackend || storedBackend || import.meta.env.VITE_API_URL || defaultBackend).replace(/\/$/, "");
         console.log(`[INARivers] Menghubungi backend API di: ${apiBase}/api/tiles`);
 
         let tiles: GeeTilesConfig | null = null;
@@ -301,7 +310,13 @@ export default function App() {
           const apiRes = await fetch(`${apiBase}/api/tiles`);
           if (apiRes.ok) {
             const data = await apiRes.json();
-            tiles = data?.tiles || data;
+            if (data?.tile2010 || data?.tiles?.tile2010) {
+              tiles = data?.tiles || data;
+            } else if (data?.message) {
+              console.warn("[INARivers] Backend belum siap:", data.message);
+            }
+          } else {
+            console.warn(`[INARivers] Backend HTTP error: ${apiRes.status}`);
           }
         } catch (fetchErr) {
           console.warn("[INARivers] Gagal memanggil API backend:", fetchErr);
@@ -309,6 +324,9 @@ export default function App() {
 
         if (!tiles) {
           console.warn("[INARivers] Menunggu backend Vercel aktif untuk melayani tile.");
+          setWarnings([
+            `Backend di ${apiBase} belum merespons data tile GEE. Pastikan backend Vercel aktif atau masukkan URL backend Vercel Anda pada panel Lapisan.`
+          ]);
           setDataStatus("warn");
           setReady(true);
           return;
@@ -748,6 +766,38 @@ export default function App() {
 
           {tab === "layers" && (
             <div className="tab-body">
+              {warnings.length > 0 && (
+                <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.35)", borderRadius: "8px", padding: "10px 12px", marginBottom: "14px", color: "#fca5a5", fontSize: "11.5px", lineHeight: 1.5 }}>
+                  <div style={{ fontWeight: 600, marginBottom: "4px", color: "#f87171", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span>⚠️</span> Status Koneksi Backend
+                  </div>
+                  {warnings.map((w, idx) => (
+                    <div key={idx} style={{ marginBottom: "6px" }}>{w}</div>
+                  ))}
+                  <div style={{ marginTop: "8px", display: "flex", gap: "6px" }}>
+                    <input
+                      type="text"
+                      placeholder="https://riverbe.vercel.app"
+                      defaultValue={typeof window !== "undefined" ? (localStorage.getItem("INARIVERS_BACKEND_URL") || "") : ""}
+                      id="backend-url-input"
+                      style={{ flex: 1, background: "#1e293b", border: "1px solid #475569", borderRadius: "4px", color: "#fff", padding: "4px 8px", fontSize: "11px" }}
+                    />
+                    <button
+                      style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: "4px", padding: "4px 10px", fontSize: "11px", cursor: "pointer", fontWeight: 500 }}
+                      onClick={() => {
+                        const val = (document.getElementById("backend-url-input") as HTMLInputElement)?.value;
+                        if (val && typeof window !== "undefined") {
+                          localStorage.setItem("INARIVERS_BACKEND_URL", val.trim());
+                          window.location.reload();
+                        }
+                      }}
+                    >
+                      Hubungkan
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div style={{ background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: "8px", padding: "10px 12px", marginBottom: "14px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
                   <div style={{ fontWeight: 600, fontSize: "12.5px", color: "#34d399", display: "flex", alignItems: "center", gap: "6px" }}>
