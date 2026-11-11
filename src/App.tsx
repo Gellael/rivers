@@ -77,266 +77,250 @@ function AnimatedCounter({ value, duration = 1200 }: { value: number; duration?:
   return <>{count.toLocaleString("id-ID")}</>;
 }
 
-function RiverShiftVisualizer({
-  onExplore,
+function SatelliteSplitViewer({
+  onExploreRiver,
+  onOpenMap,
 }: {
-  onExplore: (mode: "compare" | "2010" | "2020") => void;
+  onExploreRiver: (river: River) => void;
+  onOpenMap: (mode?: "compare" | "2010" | "2020") => void;
 }) {
-  const [mode, setMode] = useState<"all" | "2010" | "2020" | "dynamics">("all");
-  const [hoveredZone, setHoveredZone] = useState<string | null>(null);
+  const [splitPos, setSplitPos] = useState(50);
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const show2010 = mode === "all" || mode === "2010";
-  const show2020 = mode === "all" || mode === "2020";
-  const showDynamics = mode === "all" || mode === "dynamics";
+  const updateSplit = (clientX: number) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const pct = Math.max(5, Math.min(95, Math.round((x / rect.width) * 100)));
+    setSplitPos(pct);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    setIsDragging(true);
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    updateSplit(e.clientX);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    updateSplit(e.clientX);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    setIsDragging(false);
+    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+  };
+
+  const kapuas = RIVERS.find((r) => r.id === "kapuas") || RIVERS[0];
 
   return (
-    <div className="vis-card" id="vis-simulation">
-      <div className="vis-topbar">
-        <div className="vis-title-wrap">
-          <span className="vis-live-dot" />
+    <div className="split-viewer-card" id="vis-simulation">
+      <div className="split-header">
+        <div className="split-header-left">
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#38bdf8", boxShadow: "0 0 10px #38bdf8" }} />
           <div>
-            <div className="vis-title">Simulasi Visual: Dinamika Pergeseran Meander Alur Sungai</div>
-            <div className="vis-subtitle">Prinsip kerja deteksi multitemporal satelit Landsat 30m (2010 vs 2020)</div>
+            <div className="split-river-name">Sungai Kapuas, Kalimantan Barat</div>
+            <div className="split-coords">0°03'12"S 109°51'24"E · Meander Loop · Resolusi Landsat 30m</div>
           </div>
         </div>
-        <div className="vis-controls">
-          <button className={`vis-mode-btn ${mode === "all" ? "active" : ""}`} onClick={() => setMode("all")}>Semua Layer</button>
-          <button className={`vis-mode-btn ${mode === "2010" ? "active" : ""}`} onClick={() => setMode("2010")}>📅 Garis 2010</button>
-          <button className={`vis-mode-btn ${mode === "2020" ? "active" : ""}`} onClick={() => setMode("2020")}>🛰️ Garis 2020</button>
-          <button className={`vis-mode-btn ${mode === "dynamics" ? "active" : ""}`} onClick={() => setMode("dynamics")}>⚡ Erosi & Akresi</button>
+
+        <div className="split-presets">
+          <button className={`split-preset-btn ${splitPos > 85 ? "active" : ""}`} onClick={() => setSplitPos(95)}>
+            100% 2010
+          </button>
+          <button className={`split-preset-btn ${splitPos >= 45 && splitPos <= 55 ? "active" : ""}`} onClick={() => setSplitPos(50)}>
+            Split 50/50
+          </button>
+          <button className={`split-preset-btn ${splitPos < 15 ? "active" : ""}`} onClick={() => setSplitPos(5)}>
+            100% 2020
+          </button>
         </div>
       </div>
 
-      <div className="vis-canvas-wrap">
-        <div className="vis-scanline" />
-        <svg viewBox="0 0 740 280" className="vis-svg">
-          <defs>
-            <linearGradient id="visWater" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#082f49" stopOpacity="0.75" />
-              <stop offset="50%" stopColor="#0369a1" stopOpacity="0.85" />
-              <stop offset="100%" stopColor="#0284c7" stopOpacity="0.75" />
-            </linearGradient>
+      <div
+        ref={containerRef}
+        className="split-viewport"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+      >
+        {/* Floating telemetry tags */}
+        <div className="split-badge-2010">
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#fbbf24" }} />
+          <span>2010 (Landsat 7)</span>
+        </div>
 
-            <linearGradient id="visErosiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.55" />
-              <stop offset="100%" stopColor="#dc2626" stopOpacity="0.8" />
-            </linearGradient>
+        <div className="split-badge-2020">
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ff2255" }} />
+          <span>2020 (Landsat 8)</span>
+        </div>
 
-            <linearGradient id="visAkresiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.55" />
-              <stop offset="100%" stopColor="#0891b2" stopOpacity="0.8" />
-            </linearGradient>
+        {/* LAYER 1: BASELINE YEAR 2010 */}
+        <div className="split-layer">
+          <svg viewBox="0 0 900 380" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="satBg2010" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#0d1b17" />
+                <stop offset="50%" stopColor="#12241d" />
+                <stop offset="100%" stopColor="#0a1612" />
+              </linearGradient>
+              <linearGradient id="water2010" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#3d3725" />
+                <stop offset="50%" stopColor="#4a422a" />
+                <stop offset="100%" stopColor="#383222" />
+              </linearGradient>
+            </defs>
 
-            <pattern id="hatchErosi" width="8" height="8" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
-              <line x1="0" y1="0" x2="0" y2="8" stroke="#ef4444" strokeWidth="2" strokeOpacity="0.7" />
-            </pattern>
+            {/* Satellite Terrain Texture 2010 */}
+            <rect width="900" height="380" fill="url(#satBg2010)" />
 
-            <filter id="glowEro" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-            <filter id="glowAkr" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-          </defs>
+            {/* Subtle terrain contours */}
+            <path d="M 0,60 Q 250,90 450,40 T 900,80" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+            <path d="M 0,310 Q 300,280 600,340 T 900,300" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
 
-          {/* Coordinate grid lines */}
-          <g opacity="0.12" stroke="#ffffff" strokeWidth="1" strokeDasharray="3 3">
-            <line x1="40" y1="50" x2="700" y2="50" />
-            <line x1="40" y1="140" x2="700" y2="140" />
-            <line x1="40" y1="230" x2="700" y2="230" />
-            <line x1="120" y1="20" x2="120" y2="260" />
-            <line x1="260" y1="20" x2="260" y2="260" />
-            <line x1="400" y1="20" x2="400" y2="260" />
-            <line x1="540" y1="20" x2="540" y2="260" />
-            <line x1="680" y1="20" x2="680" y2="260" />
-          </g>
+            {/* River Channel 2010 */}
+            <path
+              d="M 0,160 C 180,150 260,260 420,265 C 580,270 650,110 820,110 L 900,115 L 900,205 L 820,200 C 660,200 600,355 420,350 C 250,345 180,235 0,245 Z"
+              fill="url(#water2010)"
+            />
 
-          <text x="50" y="35" fill="rgba(255,255,255,0.3)" fontSize="9" fontFamily="monospace">UTM ZONE 49S · 109°50'E</text>
-          <text x="600" y="35" fill="rgba(255,255,255,0.3)" fontSize="9" fontFamily="monospace">DATUM WGS84</text>
+            {/* Sandbar 2010 (inner point bar) */}
+            <path d="M 590,140 C 620,130 650,135 660,160 C 640,165 610,160 590,140 Z" fill="#786c4a" opacity="0.6" />
 
-          {/* Base River Water Surface (2010 baseline body) */}
-          <path
-            d="M 30,120 C 140,115 190,205 310,210 C 430,215 480,95 620,95 C 670,95 710,110 730,115 L 730,185 C 700,180 660,165 615,165 C 480,165 435,275 310,270 C 190,265 140,175 30,180 Z"
-            fill="url(#visWater)"
-            opacity="0.8"
-          />
+            {/* Garis Bibir 2010 (Kuning Emas) */}
+            <path
+              d="M 0,160 C 180,150 260,260 420,265 C 580,270 650,110 820,110 L 900,115"
+              fill="none"
+              stroke="#fbbf24"
+              strokeWidth="2.5"
+              strokeDasharray="6 4"
+              style={{ filter: "drop-shadow(0 0 5px rgba(251, 191, 36, 0.6))" }}
+            />
+            <path
+              d="M 0,245 C 180,235 250,345 420,350 C 600,355 660,200 820,200 L 900,205"
+              fill="none"
+              stroke="#fbbf24"
+              strokeWidth="2.5"
+              strokeDasharray="6 4"
+              style={{ filter: "drop-shadow(0 0 5px rgba(251, 191, 36, 0.6))" }}
+            />
+          </svg>
+        </div>
 
-          {/* Animated Water Current Flow Lines */}
-          <path
-            d="M 40,150 C 140,145 190,235 310,240 C 430,245 480,130 620,130 C 670,130 705,145 725,148"
-            fill="none"
-            stroke="#38bdf8"
-            strokeWidth="2.5"
-            strokeOpacity="0.65"
-            className="water-flow-line"
-          />
-          <path
-            d="M 50,160 C 145,155 195,245 310,250 C 425,255 475,140 615,140 C 665,140 695,153 715,156"
-            fill="none"
-            stroke="#7dd3fc"
-            strokeWidth="1.5"
-            strokeOpacity="0.4"
-            className="water-flow-line"
-            style={{ animationDelay: "-1.5s" }}
-          />
+        {/* LAYER 2: YEAR 2020 (CLIPPED BY SPLIT POSITION) */}
+        <div
+          className="split-layer"
+          style={{
+            clipPath: `inset(0 0 0 ${splitPos}%)`,
+            WebkitClipPath: `inset(0 0 0 ${splitPos}%)`,
+          }}
+        >
+          <svg viewBox="0 0 900 380" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="satBg2020" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#081412" />
+                <stop offset="50%" stopColor="#0c1d18" />
+                <stop offset="100%" stopColor="#06120e" />
+              </linearGradient>
+              <linearGradient id="water2020" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#2e2b20" />
+                <stop offset="50%" stopColor="#3d3725" />
+                <stop offset="100%" stopColor="#2b261b" />
+              </linearGradient>
+              <pattern id="hatchEro" width="8" height="8" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                <line x1="0" y1="0" x2="0" y2="8" stroke="#ef4444" strokeWidth="2" strokeOpacity="0.8" />
+              </pattern>
+            </defs>
 
-          {/* DYNAMICS: ZONA EROSI (Merah - Belokan Luar Meander 1) */}
-          {showDynamics && (
-            <g
-              onMouseEnter={() => setHoveredZone("erosi")}
-              onMouseLeave={() => setHoveredZone(null)}
-              style={{ cursor: "pointer" }}
-            >
-              <path
-                d="M 190,205 C 230,250 280,265 345,260 C 315,228 275,208 190,205 Z"
-                fill="url(#visErosiGrad)"
-                stroke="#ef4444"
-                strokeWidth="1.5"
-                filter="url(#glowEro)"
-                className="ero-pulse-zone"
-              />
-              <path
-                d="M 190,205 C 230,250 280,265 345,260 C 315,228 275,208 190,205 Z"
-                fill="url(#hatchErosi)"
-              />
-              <line x1="285" y1="240" x2="330" y2="265" stroke="#ef4444" strokeWidth="1.5" />
-              <circle cx="285" cy="240" r="3.5" fill="#ef4444" />
-              <rect x="330" y="248" width="138" height="22" rx="4" fill="rgba(239,68,68,0.25)" stroke="#ef4444" strokeWidth="1" />
-              <text x="399" y="263" fill="#fecaca" fontSize="10.5" fontWeight="700" textAnchor="middle">
-                ⚠️ Erosi Tebing (+5.9 m/th)
-              </text>
-            </g>
-          )}
+            {/* Satellite Terrain 2020 */}
+            <rect width="900" height="380" fill="url(#satBg2020)" />
 
-          {/* DYNAMICS: ZONA AKRESI (Cyan - Belokan Dalam Meander 2) */}
-          {showDynamics && (
-            <g
-              onMouseEnter={() => setHoveredZone("akresi")}
-              onMouseLeave={() => setHoveredZone(null)}
-              style={{ cursor: "pointer" }}
-            >
-              <path
-                d="M 460,115 C 510,75 565,70 615,75 C 585,100 540,115 460,115 Z"
-                fill="url(#visAkresiGrad)"
-                stroke="#06b6d4"
-                strokeWidth="1.5"
-                filter="url(#glowAkr)"
-                className="akr-pulse-zone"
-              />
-              <line x1="535" y1="85" x2="575" y2="55" stroke="#06b6d4" strokeWidth="1.5" />
-              <circle cx="535" cy="85" r="3.5" fill="#06b6d4" />
-              <rect x="575" y="42" width="145" height="22" rx="4" fill="rgba(6,182,212,0.25)" stroke="#06b6d4" strokeWidth="1" />
-              <text x="647" y="57" fill="#cffafe" fontSize="10.5" fontWeight="700" textAnchor="middle">
-                🌱 Akresi Sedimen (-1.8 m/th)
-              </text>
-            </g>
-          )}
+            {/* Shifted River Channel 2020 (Bank expanded outwards) */}
+            <path
+              d="M 0,160 C 180,150 250,305 420,315 C 570,310 650,90 820,95 L 900,100 L 900,190 L 820,185 C 670,185 580,380 420,380 C 250,375 180,235 0,245 Z"
+              fill="url(#water2020)"
+            />
 
-          {/* GARIS BIBIR SUNGAI 2010 (Kuning Emas, Garis Putus-putus) */}
-          {show2010 && (
-            <g>
-              <path
-                d="M 30,120 C 140,115 190,205 310,210 C 430,215 480,95 620,95 C 670,95 710,110 730,115"
-                fill="none"
-                stroke="#fbbf24"
-                strokeWidth="2.5"
-                strokeDasharray="6 4"
-                style={{ filter: "drop-shadow(0 0 6px rgba(251, 191, 36, 0.6))" }}
-              />
-              <path
-                d="M 30,180 C 140,175 190,265 310,270 C 435,275 480,165 615,165 C 660,165 700,180 730,185"
-                fill="none"
-                stroke="#fbbf24"
-                strokeWidth="2.5"
-                strokeDasharray="6 4"
-                style={{ filter: "drop-shadow(0 0 6px rgba(251, 191, 36, 0.6))" }}
-              />
-              <rect x="35" y="98" width="112" height="18" rx="3" fill="rgba(0,0,0,0.7)" stroke="#fbbf24" strokeWidth="0.8" />
-              <text x="91" y="111" fill="#fde68a" fontSize="9.5" fontWeight="600" textAnchor="middle">Garis Bibir 2010 (Awal)</text>
-            </g>
-          )}
+            {/* ZONA EROSI TEBING (Highlighted in Red Hatch + Border) */}
+            <path
+              d="M 260,260 C 330,300 380,315 450,315 C 430,285 390,270 330,265 Z"
+              fill="rgba(239, 68, 68, 0.45)"
+              stroke="#ef4444"
+              strokeWidth="1.5"
+            />
+            <path
+              d="M 260,260 C 330,300 380,315 450,315 C 430,285 390,270 330,265 Z"
+              fill="url(#hatchEro)"
+            />
 
-          {/* GARIS BIBIR SUNGAI 2020 (Pink Neon Terang, Garis Solid) */}
-          {show2020 && (
-            <g>
-              <path
-                d="M 30,120 C 140,115 190,205 240,245 C 310,268 420,225 470,115 C 520,70 590,75 620,95 C 670,95 710,110 730,115"
-                fill="none"
-                stroke="#ff2255"
-                strokeWidth="3"
-                style={{ filter: "drop-shadow(0 0 8px rgba(255, 34, 85, 0.75))" }}
-              />
-              <path
-                d="M 30,180 C 140,175 185,250 280,290 C 370,295 440,240 500,140 C 550,115 590,140 615,165 C 660,165 700,180 730,185"
-                fill="none"
-                stroke="#ff2255"
-                strokeWidth="3"
-                style={{ filter: "drop-shadow(0 0 8px rgba(255, 34, 85, 0.75))" }}
-              />
-              <rect x="230" y="278" width="120" height="18" rx="3" fill="rgba(0,0,0,0.7)" stroke="#ff2255" strokeWidth="0.8" />
-              <text x="290" y="291" fill="#fecdd3" fontSize="9.5" fontWeight="600" textAnchor="middle">Garis Bibir 2020 (Terbaru)</text>
-            </g>
-          )}
+            {/* ZONA AKRESI SEDIMEN (Highlighted in Cyan) */}
+            <path
+              d="M 620,135 C 655,100 705,95 760,105 C 720,125 680,135 620,135 Z"
+              fill="rgba(6, 182, 212, 0.55)"
+              stroke="#06b6d4"
+              strokeWidth="1.5"
+            />
 
-          {/* Transect Measurement Lines across the meander */}
-          <g stroke="rgba(255,255,255,0.4)" strokeWidth="1" strokeDasharray="2 2">
-            <line x1="250" y1="210" x2="265" y2="250" />
-            <line x1="280" y1="215" x2="300" y2="260" />
-            <line x1="530" y1="90" x2="550" y2="120" />
-          </g>
-        </svg>
+            {/* Garis Bibir 2020 (Pink Terang) */}
+            <path
+              d="M 0,160 C 180,150 250,305 420,315 C 570,310 650,90 820,95 L 900,100"
+              fill="none"
+              stroke="#ff2255"
+              strokeWidth="2.8"
+              style={{ filter: "drop-shadow(0 0 6px rgba(255, 34, 85, 0.8))" }}
+            />
+            <path
+              d="M 0,245 C 180,235 250,375 420,380 C 580,380 670,185 820,185 L 900,190"
+              fill="none"
+              stroke="#ff2255"
+              strokeWidth="2.8"
+              style={{ filter: "drop-shadow(0 0 6px rgba(255, 34, 85, 0.8))" }}
+            />
+          </svg>
+        </div>
+
+        {/* Draggable Vertical Splitter Line */}
+        <div className="split-divider" style={{ left: `${splitPos}%` }}>
+          <div className="split-handle">
+            <span>‹ 2010</span>
+            <span style={{ color: "#38bdf8" }}>|</span>
+            <span>2020 ›</span>
+          </div>
+        </div>
       </div>
 
-      <div className="vis-footer">
-        <div className="vis-legend-row">
-          <div className="vis-leg-item">
-            <span className="vis-leg-line" style={{ background: "#fbbf24", borderTop: "2px dashed #fbbf24" }} />
-            <span>Garis Bibir 2010 (Landsat 7)</span>
+      <div className="split-footer">
+        <div className="split-legend-group">
+          <div className="split-legend-item">
+            <span className="split-indicator-line" style={{ background: "#fbbf24", borderTop: "2px dashed #fbbf24" }} />
+            <span>Garis Bibir 2010</span>
           </div>
-          <div className="vis-leg-item">
-            <span className="vis-leg-line" style={{ background: "#ff2255" }} />
-            <span>Garis Bibir 2020 (Landsat 8)</span>
+          <div className="split-legend-item">
+            <span className="split-indicator-line" style={{ background: "#ff2255" }} />
+            <span>Garis Bibir 2020</span>
           </div>
-          <div className="vis-leg-item">
-            <span className="vis-leg-box" style={{ background: "rgba(239,68,68,0.7)", border: "1px solid #ef4444" }} />
-            <span>Zona Erosi (Tebing Tergerus)</span>
+          <div className="split-legend-item">
+            <span className="split-indicator-box" style={{ background: "rgba(239, 68, 68, 0.7)", border: "1px solid #ef4444" }} />
+            <span>Zona Erosi (+0.52 m/th)</span>
           </div>
-          <div className="vis-leg-item">
-            <span className="vis-leg-box" style={{ background: "rgba(6,182,212,0.7)", border: "1px solid #06b6d4" }} />
-            <span>Zona Akresi (Endapan Baru)</span>
+          <div className="split-legend-item">
+            <span className="split-indicator-box" style={{ background: "rgba(6, 182, 212, 0.7)", border: "1px solid #06b6d4" }} />
+            <span>Zona Akresi Sedimen</span>
           </div>
         </div>
 
         <button
-          className="btn primary sm"
-          style={{ fontWeight: 700, gap: "6px" }}
-          onClick={() => onExplore(mode === "dynamics" ? "compare" : mode === "2010" ? "2010" : mode === "2020" ? "2020" : "compare")}
+          className="btn hero-btn-primary"
+          style={{ padding: "8px 18px", fontSize: "12.5px" }}
+          onClick={() => {
+            onExploreRiver(kapuas);
+            onOpenMap("compare");
+          }}
         >
-          <span>🗺️</span> Buka di Peta Interaktif →
+          Lihat Sungai Kapuas di Peta →
         </button>
       </div>
-
-      {hoveredZone && (
-        <div style={{
-          padding: "10px 20px",
-          background: hoveredZone === "erosi" ? "rgba(239,68,68,0.15)" : "rgba(6,182,212,0.15)",
-          borderTop: `1px solid ${hoveredZone === "erosi" ? "rgba(239,68,68,0.3)" : "rgba(6,182,212,0.3)"}`,
-          fontSize: "12px",
-          color: hoveredZone === "erosi" ? "#fca5a5" : "#a5f3fc",
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-        }}>
-          <span>{hoveredZone === "erosi" ? "⚠️" : "🌱"}</span>
-          <span>
-            {hoveredZone === "erosi"
-              ? "Zona Erosi: Terjadi pada sisi luar belokan (outer bend) meander akibat kecepatan arus maksimum memotong tebing tanah."
-              : "Zona Akresi: Terjadi pada sisi dalam belokan (inner bank) meander tempat arus melambat sehingga terjadi pengendapan lumpur dan pasir."}
-          </span>
-        </div>
-      )}
     </div>
   );
 }
@@ -819,55 +803,46 @@ export default function App() {
 
     return (
       <div className="dash">
-        {/* Animated gradient background */}
         <div className="dash-bg" />
 
         <div className="dash-inner">
           <header className="dash-header">
             <div className="brand">
-              <div className="dash-logo">
-                <div className="dash-logo-glow" />
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                  <circle cx="16" cy="16" r="14" stroke="url(#lg)" strokeWidth="2.5" />
-                  <path d="M8 18c4-6 8 4 12-2s4-6 4-6" stroke="url(#lg)" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-                  <defs><linearGradient id="lg" x1="0" y1="0" x2="32" y2="32"><stop stopColor="#ff5470"/><stop offset="1" stopColor="#22d3ee"/></linearGradient></defs>
+              <div className="dash-logo-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M2 12C5 8 9 16 12 12s7 4 10-2" />
                 </svg>
               </div>
-              <div>
-                <span className="brand-name">INARivers</span>
-              </div>
-              <span className="brand-pill">WebGIS Satelit 30m</span>
+              <span className="brand-name">INARivers</span>
+              <span className="dash-tagline-chip">LANDSAT 30M · MULTITEMPORAL</span>
             </div>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button className="btn" style={{ background: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)" }} onClick={() => setShowAssetModal(true)}>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button className="btn" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.1)" }} onClick={() => setShowAssetModal(true)}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#10b981", display: "inline-block", marginRight: "6px" }} />
                 Status Asset GEE
               </button>
               <button className="btn hero-btn-primary" onClick={() => setPage("map")}>
-                <span style={{ marginRight: "6px" }}>🗺️</span>Buka Peta Interaktif
+                Buka Peta Interaktif →
               </button>
             </div>
           </header>
 
           <section className="hero">
-            <div className="hero-badge-wrap">
-              <div className="hero-badge">
-                <span className="hero-badge-dot" />
-                Google Earth Engine · JRC Global Surface Water 30m
-              </div>
-              <div className="hero-subbadge">
-                <span>🛰️</span> Multi-Temporal 2010 vs 2020
-              </div>
+            <div className="hero-tag">
+              <span className="hero-tag-dot" />
+              OBSERVASI SPASIAL 2010 — 2020 · GOOGLE EARTH ENGINE
             </div>
 
-            <h1>Pergeseran Bibir Sungai <span className="hero-gradient">Se-Indonesia</span></h1>
+            <h1>
+              Dinamika Pergeseran <span className="hero-gradient">Bibir Sungai Indonesia</span>
+            </h1>
             <p>
-              Platform geospasial pemantauan erosi tebing & sedimentasi pada <b>{RIVERS.length} sungai utama</b> Indonesia menggunakan citra satelit Landsat resolusi 30 meter, membandingkan dinamika morfologi alur sungai <b>2010</b> dengan <b>2020</b>.
+              Pemantauan abrasi tebing dan pembentukan sedimen pada <b>{RIVERS.length} Daerah Aliran Sungai utama</b> Indonesia menggunakan citra satelit Landsat resolusi 30 meter dalam rentang satu dekade.
             </p>
 
             <div className="hero-actions">
               <button className="btn hero-btn-primary" onClick={() => setPage("map")}>
-                Jelajahi Peta Interaktif →
+                Buka Peta Interaktif →
               </button>
               <button
                 className="btn hero-btn-secondary"
@@ -876,217 +851,251 @@ export default function App() {
                   el?.scrollIntoView({ behavior: "smooth" });
                 }}
               >
-                <span>⚡</span> Simulasi Visual & Metodologi
+                Komparasi 2010 vs 2020 ↓
               </button>
             </div>
 
-            <div className="quick-metrics">
-              <div className="quick-metric-pill">
-                <span>🌊</span>
-                <span><b>18</b> Sungai Utama</span>
+            <div className="hero-metrics">
+              <div className="metric-pill">
+                <span>SUNGAI:</span>
+                <strong>{RIVERS.length} Wilayah DAS</strong>
               </div>
-              <div className="quick-metric-pill">
-                <span>📐</span>
-                <span><b>1.489</b> Segmen Transek</span>
+              <div className="metric-pill">
+                <span>TRANSEK:</span>
+                <strong>{totalSeg.toLocaleString("id-ID")} Segmen</strong>
               </div>
-              <div className="quick-metric-pill">
-                <span>⏱️</span>
-                <span><b>10 Tahun</b> Rentang Waktu</span>
+              <div className="metric-pill">
+                <span>SENSOR:</span>
+                <strong>Landsat 7 / 8 (30m)</strong>
               </div>
-              <div className="quick-metric-pill">
-                <span>🛰️</span>
-                <span>Resolusi <b>30 Meter</b> Landsat</span>
+              <div className="metric-pill">
+                <span>RENTANG:</span>
+                <strong>2010 — 2020 (10 Tahun)</strong>
               </div>
             </div>
           </section>
 
-          {/* SIMULASI VISUAL: DINAMIKA PERGESERAN MEANDER ALUR SUNGAI */}
-          <RiverShiftVisualizer
-            onExplore={(mode) => {
-              setYearMode(mode);
+          {/* INTERACTIVE SATELLITE SPLIT VIEWER */}
+          <SatelliteSplitViewer
+            onExploreRiver={(r) => {
+              setSelRiver(r);
+              setTab("detail");
+              pendingFly.current = r;
+            }}
+            onOpenMap={(mode) => {
+              if (mode) setYearMode(mode);
               setPage("map");
             }}
           />
 
-          {/* Tiga Komponen Analisis Visual Showcase */}
-          <section id="dash-features" style={{ marginBottom: "36px" }}>
-            <div style={{ marginBottom: "16px" }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 700, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>
-                <span>🛰️</span> Data Spasial Multitemporal
-              </div>
-              <h2 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 4px", color: "var(--text)" }}>Tiga Komponen Analisis Bibir Sungai</h2>
-              <p style={{ margin: 0, fontSize: "13px", color: "var(--muted)" }}>Memadukan deteksi garis air historis 2010 vs 2020 serta kalkulasi perubahan morfologi tebing dari citra Landsat 30m.</p>
+          {/* FEATURED RIVERS DYNAMICS */}
+          <section style={{ marginBottom: "40px" }}>
+            <div className="section-header-row">
+              <div className="section-subtitle">FOKUS DINAMIKA MORFOLOGI</div>
+              <h2 className="section-title">Sungai dengan Perubahan Paling Signifikan</h2>
+              <p className="section-desc">Empat sungai utama dengan laju erosi tebing dan akumulasi sedimen tertinggi di Indonesia.</p>
             </div>
 
-            <div className="feature-cards-grid">
-              <div className="feature-card feat-2010">
+            <div className="featured-rivers-grid">
+              {/* Sungai Musi */}
+              <div
+                className="featured-river-card"
+                onClick={() => {
+                  const r = RIVERS.find((x) => x.id === "musi") || RIVERS[0];
+                  setSelRiver(r);
+                  setTab("detail");
+                  pendingFly.current = r;
+                  setPage("map");
+                }}
+              >
                 <div>
-                  <div className="feat-head">
-                    <div className="feat-icon" style={{ background: "rgba(251, 191, 36, 0.15)", color: "#fbbf24" }}>📅</div>
-                    <span className="feat-badge" style={{ background: "rgba(251, 191, 36, 0.15)", color: "#fbbf24" }}>Tahun 2010</span>
+                  <div className="feat-river-top">
+                    <span className="feat-island-badge">Sumatera</span>
+                    <span className="feat-river-rate ero">+5.90 m/th</span>
                   </div>
-                  <div className="feat-title">Bibir Sungai 2010 (Awal)</div>
-                  <div className="feat-desc">Garis batas tepi perairan sungai 10 tahun lalu, diekstraksi dari citra Landsat 7 dan JRC Global Surface Water 30m bebas awan.</div>
+                  <div className="feat-river-name">Sungai Musi</div>
+                  <div className="feat-river-detail">Erosi tebing paling masif di Indonesia — pelebaran alur mencapai rata-rata 59 meter dalam rentang 10 tahun.</div>
                 </div>
-                <div>
-                  <div style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#fbbf24", fontWeight: 600 }}>
-                    <span style={{ width: 14, height: 3, background: "#fbbf24", borderRadius: "2px" }} /> Garis Kuning Emas
-                  </div>
-                  <button
-                    className="feat-action-btn"
-                    onClick={() => {
-                      setYearMode("2010");
-                      setPage("map");
-                    }}
-                  >
-                    Buka Layer 2010 di Peta →
-                  </button>
-                </div>
-              </div>
-
-              <div className="feature-card feat-2020">
-                <div>
-                  <div className="feat-head">
-                    <div className="feat-icon" style={{ background: "rgba(255, 34, 85, 0.15)", color: "#ff2255" }}>🛰️</div>
-                    <span className="feat-badge" style={{ background: "rgba(255, 34, 85, 0.15)", color: "#ff2255" }}>Tahun 2020</span>
-                  </div>
-                  <div className="feat-title">Bibir Sungai 2020 (Terbaru)</div>
-                  <div className="feat-desc">Garis batas tepi perairan sungai terkini, dihitung dari Landsat 8 Surface Reflectance untuk mendeteksi perubahan alur sungai.</div>
-                </div>
-                <div>
-                  <div style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#ff2255", fontWeight: 600 }}>
-                    <span style={{ width: 14, height: 3, background: "#ff2255", borderRadius: "2px" }} /> Garis Pink Terang
-                  </div>
-                  <button
-                    className="feat-action-btn"
-                    onClick={() => {
-                      setYearMode("2020");
-                      setPage("map");
-                    }}
-                  >
-                    Buka Layer 2020 di Peta →
-                  </button>
+                <div className="feat-river-footer">
+                  <span>107 Segmen Transek</span>
+                  <span>Fokus di Peta →</span>
                 </div>
               </div>
 
-              <div className="feature-card feat-dyn">
+              {/* Sungai Mahakam */}
+              <div
+                className="featured-river-card"
+                onClick={() => {
+                  const r = RIVERS.find((x) => x.id === "mahakam") || RIVERS[0];
+                  setSelRiver(r);
+                  setTab("detail");
+                  pendingFly.current = r;
+                  setPage("map");
+                }}
+              >
                 <div>
-                  <div className="feat-head">
-                    <div className="feat-icon" style={{ background: "rgba(34, 211, 238, 0.15)", color: "#22d3ee" }}>⚡</div>
-                    <span className="feat-badge" style={{ background: "rgba(239, 68, 68, 0.15)", color: "#ef4444" }}>10 Tahun Dinamika</span>
+                  <div className="feat-river-top">
+                    <span className="feat-island-badge">Kalimantan</span>
+                    <span className="feat-river-rate ero">+3.94 m/th</span>
                   </div>
-                  <div className="feat-title">Zona Erosi & Akresi</div>
-                  <div className="feat-desc">Kalkulasi perbedaan spasial tebing: zona tanah runtuh terbawa arus (Erosi) vs daratan timbul baru dari endapan lumpur (Akresi).</div>
+                  <div className="feat-river-name">Sungai Mahakam</div>
+                  <div className="feat-river-detail">Migrasi alur meander sangat aktif di Kalimantan Timur dengan pemotongan tebing tebal di sisi luar belokan.</div>
                 </div>
-                <div>
-                  <div style={{ marginTop: "16px", display: "flex", gap: "14px", fontSize: "12px", fontWeight: 600 }}>
-                    <span style={{ color: "#ef4444", display: "flex", alignItems: "center", gap: "6px" }}>
-                      <span style={{ width: 8, height: 8, background: "#ef4444", borderRadius: "2px" }} /> Erosi (Merah)
-                    </span>
-                    <span style={{ color: "#06b6d4", display: "flex", alignItems: "center", gap: "6px" }}>
-                      <span style={{ width: 8, height: 8, background: "#06b6d4", borderRadius: "2px" }} /> Akresi (Cyan)
-                    </span>
-                  </div>
-                  <button
-                    className="feat-action-btn"
-                    onClick={() => {
-                      setYearMode("compare");
-                      setPage("map");
-                    }}
-                  >
-                    Buka Zona Dinamika di Peta →
-                  </button>
+                <div className="feat-river-footer">
+                  <span>186 Segmen Transek</span>
+                  <span>Fokus di Peta →</span>
                 </div>
               </div>
-            </div>
-          </section>
 
-          {/* 4-STEP METODOLOGI PIPELINE CARDS */}
-          <section className="pipeline-section">
-            <div style={{ marginBottom: "14px" }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 700, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>
-                <span>📐</span> Metodologi Geospasial
+              {/* Sungai Barito */}
+              <div
+                className="featured-river-card"
+                onClick={() => {
+                  const r = RIVERS.find((x) => x.id === "barito") || RIVERS[0];
+                  setSelRiver(r);
+                  setTab("detail");
+                  pendingFly.current = r;
+                  setPage("map");
+                }}
+              >
+                <div>
+                  <div className="feat-river-top">
+                    <span className="feat-island-badge">Kalimantan</span>
+                    <span className="feat-river-rate ero">+3.21 m/th</span>
+                  </div>
+                  <div className="feat-river-name">Sungai Barito</div>
+                  <div className="feat-river-detail">Abrasi pesisir dan tebing sungai hilir di Kalimantan Selatan dengan perubahan batas air yang konsisten.</div>
+                </div>
+                <div className="feat-river-footer">
+                  <span>165 Segmen Transek</span>
+                  <span>Fokus di Peta →</span>
+                </div>
               </div>
-              <h2 style={{ fontSize: "19px", fontWeight: 700, margin: "0 0 4px", color: "#f8fafc" }}>Alur Pemrosesan Citra Satelit Multitemporal</h2>
-              <p style={{ margin: 0, fontSize: "13px", color: "var(--muted)" }}>Bagaimana INARivers mengekstraksi dan mengukur pergeseran tebing sungai dengan akurasi 30 meter.</p>
-            </div>
 
-            <div className="pipeline-grid">
-              <div className="pipeline-step">
-                <span className="step-num-badge">01</span>
-                <div style={{ fontSize: "20px", marginBottom: "8px" }}>🛰️</div>
-                <div className="step-title">Akuisisi Citra Landsat</div>
-                <div className="step-desc">Pengambilan mosaik bebas awan Landsat 7 ETM+ (2010) & Landsat 8 OLI (2020) melalui Google Earth Engine API.</div>
-              </div>
-              <div className="pipeline-step">
-                <span className="step-num-badge">02</span>
-                <div style={{ fontSize: "20px", marginBottom: "8px" }}>🌊</div>
-                <div className="step-title">Ekstraksi Indeks Air MNDWI</div>
-                <div className="step-desc">Kalkulasi Modified Normalized Difference Water Index dan segmentasi ambang otomatis Otsu untuk memisahkan air dan daratan.</div>
-              </div>
-              <div className="pipeline-step">
-                <span className="step-num-badge">03</span>
-                <div style={{ fontSize: "20px", marginBottom: "8px" }}>📏</div>
-                <div className="step-title">Transek Tegak Lurus Alur</div>
-                <div className="step-desc">Pembuatan centerline alur sungai dan 1.489 transek tegak lurus berjarak berkala untuk mengukur perubahan posisi tepi tebing.</div>
-              </div>
-              <div className="pipeline-step">
-                <span className="step-num-badge">04</span>
-                <div style={{ fontSize: "20px", marginBottom: "8px" }}>⚡</div>
-                <div className="step-title">Klasifikasi Erosi & Akresi</div>
-                <div className="step-desc">Pengukuran delta jarak pergeseran (meter/tahun) tebing runtuh tergerus air (erosi) vs pembentukan sedimen baru (akresi).</div>
+              {/* Sungai Siak */}
+              <div
+                className="featured-river-card"
+                onClick={() => {
+                  const r = RIVERS.find((x) => x.id === "siak") || RIVERS[0];
+                  setSelRiver(r);
+                  setTab("detail");
+                  pendingFly.current = r;
+                  setPage("map");
+                }}
+              >
+                <div>
+                  <div className="feat-river-top">
+                    <span className="feat-island-badge">Sumatera</span>
+                    <span className="feat-river-rate akr">-7.32 m/th</span>
+                  </div>
+                  <div className="feat-river-name">Sungai Siak</div>
+                  <div className="feat-river-detail">Akumulasi sedimen dan lumpur terkuat di Indonesia, menyebabkan penyempitan alur sungai secara terukur.</div>
+                </div>
+                <div className="feat-river-footer">
+                  <span>19 Segmen Transek</span>
+                  <span>Fokus di Peta →</span>
+                </div>
               </div>
             </div>
           </section>
 
-          {/* STATS GRID DENGAN ANIMATED COUNTER */}
+          {/* THREE CORE DATA LAYERS */}
+          <section style={{ marginBottom: "40px" }}>
+            <div className="section-header-row">
+              <div className="section-subtitle">STRUKTUR DATA GEOSPASIAL</div>
+              <h2 className="section-title">Tiga Lapisan Analisis Multitemporal</h2>
+              <p className="section-desc">Kombinasi ekstraksi vektor tepi perairan dari citra satelit Landsat 7 dan 8 resolusi 30 meter.</p>
+            </div>
+
+            <div className="layers-grid">
+              <div className="layer-card c-2010">
+                <div>
+                  <div className="layer-tag">BASELINE 2010 · LANDSAT 7</div>
+                  <div className="layer-title">Garis Bibir Tahun 2010</div>
+                  <div className="layer-desc">Garis batas tepi perairan historis 10 tahun lalu, diekstraksi dari mosaik citra Landsat 7 ETM+ bebas awan.</div>
+                </div>
+                <button
+                  className="layer-btn"
+                  onClick={() => {
+                    setYearMode("2010");
+                    setPage("map");
+                  }}
+                >
+                  Tampilkan Layer 2010 di Peta →
+                </button>
+              </div>
+
+              <div className="layer-card c-2020">
+                <div>
+                  <div className="layer-tag">TERKINI 2020 · LANDSAT 8</div>
+                  <div className="layer-title">Garis Bibir Tahun 2020</div>
+                  <div className="layer-desc">Garis batas tepi perairan terkini dari citra Landsat 8 OLI Surface Reflectance untuk mendeteksi perubahan alur.</div>
+                </div>
+                <button
+                  className="layer-btn"
+                  onClick={() => {
+                    setYearMode("2020");
+                    setPage("map");
+                  }}
+                >
+                  Tampilkan Layer 2020 di Peta →
+                </button>
+              </div>
+
+              <div className="layer-card c-dyn">
+                <div>
+                  <div className="layer-tag">DELTA 10 TAHUN · EROSI & AKRESI</div>
+                  <div className="layer-title">Zona Dinamika Morfologi</div>
+                  <div className="layer-desc">Kalkulasi poligon selisih tebing: zona tanah hilang tergerus arus (Merah) vs sedimentasi daratan baru (Cyan).</div>
+                </div>
+                <button
+                  className="layer-btn"
+                  onClick={() => {
+                    setYearMode("compare");
+                    setPage("map");
+                  }}
+                >
+                  Tampilkan Zona Dinamika di Peta →
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* STATS GRID */}
           <div className="stats-grid">
             <div className="stat-card">
-              <div className="stat-icon" style={{ background: "rgba(99, 102, 241, 0.15)", color: "#818cf8" }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12C2 7 7 2 12 2s10 5 10 10-5 10-10 10S2 17 2 12z"/><path d="M8 14c2-4 4 2 6-1s2-3 2-3"/></svg>
-              </div>
               <div className="stat-val"><AnimatedCounter value={RIVERS.length} /></div>
               <div className="stat-label2">Sungai Terpantau</div>
               <div className="stat-sub">5 Pulau Besar Indonesia</div>
             </div>
             <div className="stat-card">
-              <div className="stat-icon" style={{ background: "rgba(239, 68, 68, 0.15)", color: COLORS.erosi }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 17V7l-5 10h9"/></svg>
-              </div>
-              <div className="stat-val"><AnimatedCounter value={eroding} /></div>
+              <div className="stat-val" style={{ color: "#ef4444" }}><AnimatedCounter value={eroding} /></div>
               <div className="stat-label2">Dominan Erosi</div>
-              <div className="stat-sub">Tebing tergerus arus sungai</div>
+              <div className="stat-sub">{erosiPct}% sungai mengalami pelebaran tebing</div>
             </div>
             <div className="stat-card">
-              <div className="stat-icon" style={{ background: "rgba(6, 182, 212, 0.15)", color: COLORS.akresi }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 7v10l5-10H7"/></svg>
-              </div>
-              <div className="stat-val"><AnimatedCounter value={accreting} /></div>
+              <div className="stat-val" style={{ color: "#06b6d4" }}><AnimatedCounter value={accreting} /></div>
               <div className="stat-label2">Dominan Akresi</div>
-              <div className="stat-sub">Endapan sedimen & pasir bertambah</div>
+              <div className="stat-sub">{akresiPct}% sungai mengalami sedimentasi</div>
             </div>
             <div className="stat-card">
-              <div className="stat-icon" style={{ background: "rgba(251, 191, 36, 0.15)", color: "#fbbf24" }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-              </div>
-              <div className="stat-val"><AnimatedCounter value={totalSeg} /></div>
+              <div className="stat-val" style={{ color: "#fbbf24" }}><AnimatedCounter value={totalSeg} /></div>
               <div className="stat-label2">Segmen Transek</div>
-              <div className="stat-sub">Resolusi Landsat 30m</div>
+              <div className="stat-sub">Jarak ukur interval 100m</div>
             </div>
           </div>
 
+          {/* RANKING & PROPORSI */}
           <div className="dash-grid2" id="dash-ranking">
-            {/* LEFT: Ranking sungai */}
             <section className="card">
               <div className="card-head">
                 <div>
-                  <h2 style={{ margin: "0 0 4px" }}>📊 Peringkat Pergeseran Sungai</h2>
-                  <div style={{ fontSize: "12px", color: "var(--muted)" }}>Pilih pulau untuk menyaring sungai, klik nama sungai untuk melihat di peta</div>
+                  <h2 style={{ margin: "0 0 4px" }}>Peringkat Laju Pergeseran Sungai</h2>
+                  <div style={{ fontSize: "12px", color: "#64748b" }}>Klik nama sungai untuk langsung memperbesar peta pada lokasi sungai</div>
                 </div>
                 <span className="card-badge">{ranked.length} Sungai</span>
               </div>
 
-              {/* Island Filter Pills */}
               <div className="dash-pills">
                 {["Semua", "Kalimantan", "Sumatera", "Jawa", "Sulawesi", "Papua"].map((isl) => (
                   <button
@@ -1098,6 +1107,7 @@ export default function App() {
                   </button>
                 ))}
               </div>
+
               <div className="ranking-list">
                 {ranked.map((r, i) => (
                   <button
@@ -1122,10 +1132,9 @@ export default function App() {
               </div>
             </section>
 
-            {/* RIGHT: Ringkasan visual */}
             <div className="dash-right-stack">
-              <section className="card card-chart">
-                <h2>Proporsi Erosi vs Akresi</h2>
+              <section className="card">
+                <h2>Proporsi Erosi vs Akresi Nasional</h2>
                 <div className="chart-wrap">
                   <DonutChart />
                   <div className="chart-legend">
@@ -1133,46 +1142,43 @@ export default function App() {
                       <span className="leg-dot" style={{ background: COLORS.erosi }} />
                       <div>
                         <div className="leg-val">{eroding} sungai ({erosiPct}%)</div>
-                        <div className="leg-desc">Erosi dominan</div>
+                        <div className="leg-desc">Kecenderungan erosi tebing</div>
                       </div>
                     </div>
                     <div className="chart-leg-item">
                       <span className="leg-dot" style={{ background: COLORS.akresi }} />
                       <div>
                         <div className="leg-val">{accreting} sungai ({akresiPct}%)</div>
-                        <div className="leg-desc">Akresi dominan</div>
+                        <div className="leg-desc">Kecenderungan sedimentasi</div>
                       </div>
                     </div>
                   </div>
                 </div>
               </section>
 
-              <section className="card card-insights">
-                <h2>🔍 Insight Utama</h2>
+              <section className="card">
+                <h2>Catatan Temuan Data</h2>
                 <div className="insight-list">
                   {widest && widest.avgRate > 0 && (
                     <div className="insight-item ero-border">
-                      <div className="insight-icon">⚠️</div>
                       <div>
-                        <div className="insight-title">Erosi Tertinggi</div>
-                        <div className="insight-desc"><b>{widest.name}</b> mengalami pelebaran {fmtRate(widest.avgRate)} — tebing sungai tergerus paling cepat di Indonesia.</div>
+                        <div className="insight-title">Erosi Tertinggi: {widest.name}</div>
+                        <div className="insight-desc">Mengalami pelebaran tebing rata-rata <b>{fmtRate(widest.avgRate)}</b>, menandakan gerusan air paling agresif.</div>
                       </div>
                     </div>
                   )}
                   {narrowest && narrowest.avgRate < 0 && (
                     <div className="insight-item akr-border">
-                      <div className="insight-icon">🏗️</div>
                       <div>
-                        <div className="insight-title">Sedimentasi Tertinggi</div>
-                        <div className="insight-desc"><b>{narrowest.name}</b> menyempit {fmtRate(narrowest.avgRate)} — sedimen terakumulasi paling kuat.</div>
+                        <div className="insight-title">Sedimentasi Tertinggi: {narrowest.name}</div>
+                        <div className="insight-desc">Alur menyempit <b>{fmtRate(narrowest.avgRate)}</b> akibat endapan sedimen lumpur yang signifikan.</div>
                       </div>
                     </div>
                   )}
                   <div className="insight-item info-border">
-                    <div className="insight-icon">📡</div>
                     <div>
-                      <div className="insight-title">Sumber Data</div>
-                      <div className="insight-desc">JRC Global Surface Water (Landsat 30m) + MERIT Hydro, diproses langsung di Google Earth Engine.</div>
+                      <div className="insight-title">Sumber & Sensor Satelit</div>
+                      <div className="insight-desc">Diproses menggunakan Google Earth Engine API dari data arsip Landsat USGS/NASA resolusi 30m.</div>
                     </div>
                   </div>
                 </div>
@@ -1180,21 +1186,22 @@ export default function App() {
             </div>
           </div>
 
-          {/* CTA */}
-          <section className="card cta-card">
+          {/* BOTTOM CTA */}
+          <section className="cta-card">
             <div>
-              <h3 style={{ margin: "0 0 6px", fontSize: "18px" }}>Siap menjelajahi data?</h3>
-              <p style={{ margin: 0, color: "var(--muted)", fontSize: "14px" }}>Buka peta interaktif untuk melihat garis bibir sungai dan zona pergeseran tebing di seluruh Indonesia.</p>
+              <h3>Siap Menjelajahi Peta Interaktif?</h3>
+              <p style={{ margin: 0, color: "#94a3b8", fontSize: "14px" }}>
+                Akses visualisasi spasial 18 sungai utama, inspeksi segmen pergeseran, dan bandingkan citra satelit langsung.
+              </p>
             </div>
-            <button className="btn primary lg" onClick={() => setPage("map")}>
-              Buka Peta →
+            <button className="btn hero-btn-primary" onClick={() => setPage("map")}>
+              Buka Peta Interaktif →
             </button>
           </section>
 
           <footer className="dash-footer">
-            <span>© {new Date().getFullYear()} INARivers</span>
-            <span style={{ color: "var(--faint)" }}>·</span>
-            <span style={{ color: "var(--faint)", fontSize: "11px" }}>Powered by Google Earth Engine</span>
+            <span>© {new Date().getFullYear()} INARivers · WebGIS Dinamika Pergeseran Bibir Sungai Indonesia</span>
+            <span>Google Earth Engine & Landsat 30m</span>
           </footer>
         </div>
       </div>
