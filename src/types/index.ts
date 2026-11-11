@@ -24,3 +24,4 @@ export type YearMode = "compare" | "2010" | "2020";
 export type DataStatus = "loading" | "ok" | "warn" | "error";
 export type SidebarTab = "rivers" | "layers" | "detail";
 export type PageView = "dashboard" | "map";
+

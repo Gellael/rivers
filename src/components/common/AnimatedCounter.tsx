@@ -24,3 +24,4 @@ export function AnimatedCounter({ value, duration = 1200 }: { value: number; dur
 
   return <>{count.toLocaleString("id-ID")}</>;
 }
+

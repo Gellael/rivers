@@ -55,10 +55,10 @@ export const Topbar: React.FC<TopbarProps> = ({
         <button
           className="btn btn-asset"
           onClick={onShowAssetModal}
-          title="Info Asset GEE Se-Indonesia"
+          title="Info Asset GEE"
         >
           <span className="live-dot" />
-          <span>Asset GEE</span>
+          Asset GEE
         </button>
 
         <button
@@ -74,15 +74,16 @@ export const Topbar: React.FC<TopbarProps> = ({
 
         <div className="seg basemap-seg" role="group" aria-label="Peta dasar">
           {([
-            ["sat-2010", "Satelit 2010"],
-            ["sat-2020", "Satelit 2020"],
-            ["sat", "Satelit Kini"],
+            ["sat-2010", "2010"],
+            ["sat-2020", "2020"],
+            ["sat", "Kini"],
             ["dark", "Gelap"],
           ] as [BaseMap, string][]).map(([k, label]) => (
             <button
               key={k}
               className={baseMap === k ? "on" : ""}
               onClick={() => onChangeBaseMap(k)}
+              title={k === "sat-2010" ? "Satelit 2010" : k === "sat-2020" ? "Satelit 2020" : k === "sat" ? "Satelit Kini" : "Gelap"}
             >
               {label}
             </button>
@@ -94,26 +95,15 @@ export const Topbar: React.FC<TopbarProps> = ({
           onClick={onResetView}
           title="Tampilkan peta seluruh wilayah Indonesia"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
-            <path d="M2 12h20" />
-          </svg>
-          <span>Seluruh Indonesia</span>
+          Seluruh Indonesia
         </button>
 
         <button
           className="btn btn-primary-gradient"
           onClick={onGoToDashboard}
-          title="Kembali ke Dashboard Beranda"
+          title="Kembali ke halaman Ringkasan"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect width="7" height="9" x="3" y="3" rx="1" />
-            <rect width="7" height="5" x="14" y="3" rx="1" />
-            <rect width="7" height="9" x="14" y="12" rx="1" />
-            <rect width="7" height="5" x="3" y="16" rx="1" />
-          </svg>
-          <span>Ringkasan</span>
+          Ringkasan
         </button>
       </div>
     </header>

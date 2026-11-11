@@ -74,3 +74,4 @@ export const AssetStatusModal: React.FC<AssetStatusModalProps> = ({ onClose }) =
     </div>
   );
 };
+
