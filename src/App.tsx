@@ -174,6 +174,27 @@ export default function App() {
   const [geeOpacity, setGeeOpacity] = useState(1.0);
   const [showAssetModal, setShowAssetModal] = useState(false);
 
+  // Fungsi ganti basemap yang otomatis menyelaraskan fokus garis tahun
+  const changeBaseMap = (k: BaseMap) => {
+    setBaseMap(k);
+    if (k === "sat-2010") {
+      setShowGee2010(true);
+      setShowGee2020(false);
+      setShowGeeChange(false);
+      setYearMode("2010");
+    } else if (k === "sat-2020") {
+      setShowGee2010(false);
+      setShowGee2020(true);
+      setShowGeeChange(false);
+      setYearMode("2020");
+    } else if (k === "sat" || k === "dark") {
+      setShowGee2010(true);
+      setShowGee2020(true);
+      setShowGeeChange(true);
+      setYearMode("compare");
+    }
+  };
+
   const filtered = RIVERS.filter((r) => {
     if (selIsland !== "Semua" && r.island !== selIsland) return false;
     if (searchQ) {
@@ -333,60 +354,8 @@ export default function App() {
           return;
         }
 
-        // Update basemap satelit dengan tile resmi dari backend jika ada
-        if (tiles.tileSat2010 && map.getSource("base-sat-2010")) {
-          try {
-            const isVis = baseRef.current === "sat-2010" ? "visible" : "none";
-            if (map.getLayer("base-sat-2010")) map.removeLayer("base-sat-2010");
-            map.removeSource("base-sat-2010");
-            map.addSource("base-sat-2010", {
-              type: "raster",
-              tiles: [tiles.tileSat2010],
-              tileSize: 256,
-              maxzoom: 18,
-              attribution: "Google Earth Engine · Landsat 2010 True Color",
-            });
-            const firstId = map.getStyle().layers?.[0]?.id;
-            map.addLayer(
-              {
-                id: "base-sat-2010",
-                type: "raster",
-                source: "base-sat-2010",
-                layout: { visibility: isVis },
-              },
-              firstId
-            );
-          } catch (e) {
-            console.warn("[INARivers] Gagal memperbarui base-sat-2010:", e);
-          }
-        }
-
-        if (tiles.tileSat2020 && map.getSource("base-sat-2020")) {
-          try {
-            const isVis = baseRef.current === "sat-2020" ? "visible" : "none";
-            if (map.getLayer("base-sat-2020")) map.removeLayer("base-sat-2020");
-            map.removeSource("base-sat-2020");
-            map.addSource("base-sat-2020", {
-              type: "raster",
-              tiles: [tiles.tileSat2020],
-              tileSize: 256,
-              maxzoom: 18,
-              attribution: "Google Earth Engine · Landsat 8 2020 True Color",
-            });
-            const firstId = map.getStyle().layers?.[0]?.id;
-            map.addLayer(
-              {
-                id: "base-sat-2020",
-                type: "raster",
-                source: "base-sat-2020",
-                layout: { visibility: isVis },
-              },
-              firstId
-            );
-          } catch (e) {
-            console.warn("[INARivers] Gagal memperbarui base-sat-2020:", e);
-          }
-        }
+        // Basemap satelit menggunakan Esri World Imagery (HD Satellite CDN Cepat, Bebas Lag & Tanpa Kotak Hitam)
+        // Garis bibir sungai 2010 (kuning) dan 2020 (pink) otomatis diselaraskan sesuai tombol tahun yang dipilih
 
         // Layer 1: Dinamika Pergeseran (Erosi & Akresi)
         if (tiles?.tileChange && !map.getSource("gee-src-change")) {
@@ -832,7 +801,7 @@ export default function App() {
               ["sat", "Satelit Kini"],
               ["dark", "Gelap"],
             ] as [BaseMap, string][]).map(([k, label]) => (
-              <button key={k} className={baseMap === k ? "on" : ""} onClick={() => setBaseMap(k)}>{label}</button>
+              <button key={k} className={baseMap === k ? "on" : ""} onClick={() => changeBaseMap(k)}>{label}</button>
             ))}
           </div>
 
@@ -1002,7 +971,7 @@ export default function App() {
                   ["sat", "Satelit Kini"],
                   ["dark", "Gelap"],
                 ] as [BaseMap, string][]).map(([k, label]) => (
-                  <button key={k} style={{ flex: "1 1 45%", fontSize: "11px", padding: "6px 8px" }} className={baseMap === k ? "on" : ""} onClick={() => setBaseMap(k)}>{label}</button>
+                  <button key={k} style={{ flex: "1 1 45%", fontSize: "11px", padding: "6px 8px" }} className={baseMap === k ? "on" : ""} onClick={() => changeBaseMap(k)}>{label}</button>
                 ))}
               </div>
 
