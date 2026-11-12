@@ -6,6 +6,9 @@ interface FeaturedRiversProps {
   onSelectRiver: (river: River) => void;
 }
 
+/** Laju maksimum (m/th) untuk skala bar kecil di tiap kartu */
+const MAX_RATE = 8;
+
 export const FeaturedRivers: React.FC<FeaturedRiversProps> = ({ onSelectRiver }) => {
   const musi = RIVERS.find((r) => r.id === "musi") || RIVERS[0];
   const mahakam = RIVERS.find((r) => r.id === "mahakam") || RIVERS[1];
@@ -44,7 +47,7 @@ export const FeaturedRivers: React.FC<FeaturedRiversProps> = ({ onSelectRiver })
   ];
 
   return (
-    <section style={{ marginBottom: "40px" }}>
+    <section>
       <div className="section-header-row">
         <div className="section-subtitle">FOKUS DINAMIKA MORFOLOGI</div>
         <h2 className="section-title">Sungai dengan Perubahan Paling Signifikan</h2>
@@ -52,26 +55,36 @@ export const FeaturedRivers: React.FC<FeaturedRiversProps> = ({ onSelectRiver })
       </div>
 
       <div className="featured-rivers-grid">
-        {featured.map(({ river, badge, rateClass, rateText, desc }) => (
-          <div
-            key={river.id}
-            className="featured-river-card"
-            onClick={() => onSelectRiver(river)}
-          >
-            <div>
-              <div className="feat-river-top">
-                <span className="feat-island-badge">{badge}</span>
-                <span className={`feat-river-rate ${rateClass}`}>{rateText}</span>
+        {featured.map(({ river, badge, rateClass, rateText, desc }, i) => {
+          const pct = Math.min(100, (Math.abs(parseFloat(rateText)) / MAX_RATE) * 100);
+          return (
+            <button
+              type="button"
+              key={river.id}
+              className={`featured-river-card ${rateClass}`}
+              onClick={() => onSelectRiver(river)}
+            >
+              <span className="feat-index" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
+              <div>
+                <div className="feat-river-top">
+                  <span className="feat-island-badge">{badge}</span>
+                  <span className={`feat-river-rate ${rateClass}`}>{rateText}</span>
+                </div>
+                <div className="feat-river-name">{river.name}</div>
+                <div className="feat-river-detail">{desc}</div>
               </div>
-              <div className="feat-river-name">{river.name}</div>
-              <div className="feat-river-detail">{desc}</div>
-            </div>
-            <div className="feat-river-footer">
-              <span>{river.segmentCount} Segmen Transek</span>
-              <span className="feat-link-btn">Fokus di Peta →</span>
-            </div>
-          </div>
-        ))}
+              <div>
+                <div className="feat-bar" aria-hidden="true">
+                  <i style={{ width: `${pct}%` }} />
+                </div>
+                <div className="feat-river-footer">
+                  <span>{river.segmentCount} Segmen Transek</span>
+                  <span className="feat-link-btn">Fokus di Peta →</span>
+                </div>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </section>
   );

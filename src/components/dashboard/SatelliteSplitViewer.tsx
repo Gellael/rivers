@@ -8,6 +8,7 @@ interface SatelliteSplitViewerProps {
 export const SatelliteSplitViewer: React.FC<SatelliteSplitViewerProps> = ({ onOpenMap }) => {
   const [splitPos, setSplitPos] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
+  const [touched, setTouched] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const updateSplit = (clientX: number) => {
@@ -20,7 +21,8 @@ export const SatelliteSplitViewer: React.FC<SatelliteSplitViewerProps> = ({ onOp
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     setIsDragging(true);
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    setTouched(true);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
     updateSplit(e.clientX);
   };
 
@@ -31,7 +33,26 @@ export const SatelliteSplitViewer: React.FC<SatelliteSplitViewerProps> = ({ onOp
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     setIsDragging(false);
-    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+  };
+
+  // Aksesibilitas: geser dengan keyboard
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      setTouched(true);
+      setSplitPos((p) => Math.max(5, p - 5));
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      setTouched(true);
+      setSplitPos((p) => Math.min(95, p + 5));
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setSplitPos(5);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      setSplitPos(95);
+    }
   };
 
   return (
@@ -69,19 +90,27 @@ export const SatelliteSplitViewer: React.FC<SatelliteSplitViewerProps> = ({ onOp
 
       <div
         ref={containerRef}
-        className="split-viewport"
+        className={`split-viewport ${isDragging ? "dragging" : ""} ${touched ? "touched" : ""}`}
+        role="slider"
+        tabIndex={0}
+        aria-label="Bandingkan citra 2010 dan 2020"
+        aria-valuemin={5}
+        aria-valuemax={95}
+        aria-valuenow={splitPos}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onKeyDown={handleKeyDown}
       >
         {/* Floating telemetry badges */}
         <div className="split-badge-2010">
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#fbbf24" }} />
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#fbbf24", boxShadow: "0 0 8px #fbbf24" }} />
           <span>2010 (Landsat 7)</span>
         </div>
 
         <div className="split-badge-2020">
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ff2255" }} />
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ff2255", boxShadow: "0 0 8px #ff2255" }} />
           <span>2020 (Landsat 8)</span>
         </div>
 
@@ -211,11 +240,14 @@ export const SatelliteSplitViewer: React.FC<SatelliteSplitViewerProps> = ({ onOp
         {/* Draggable Vertical Splitter Line */}
         <div className="split-divider" style={{ left: `${splitPos}%` }}>
           <div className="split-handle">
-            <span>‹ 2010</span>
-            <span style={{ color: "#38bdf8" }}>|</span>
-            <span>2020 ›</span>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 6l-6 6 6 6" />
+              <path d="M15 6l6 6-6 6" />
+            </svg>
           </div>
         </div>
+
+        {!touched && <div className="split-hint">← Geser untuk membandingkan →</div>}
       </div>
 
       <div className="split-footer">
@@ -239,8 +271,7 @@ export const SatelliteSplitViewer: React.FC<SatelliteSplitViewerProps> = ({ onOp
         </div>
 
         <button
-          className="btn hero-btn-primary"
-          style={{ padding: "9px 20px", fontSize: "13px" }}
+          className="btn hero-btn-primary compact"
           onClick={() => onOpenMap("compare")}
         >
           Buka Peta Seluruh Indonesia →
