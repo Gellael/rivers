@@ -123,16 +123,96 @@ export default function App() {
     const show2020 = showGee2020 && (yearMode === "compare" || yearMode === "2020");
     const showZn = showGeeChange && (yearMode === "compare" || yearMode === "2020");
 
-    setVis("gee-tile-2010", showGeeTiles && show2010);
-    setVis("gee-tile-2020", showGeeTiles && show2020);
-    setVis("gee-tile-change", showGeeTiles && showZn);
+    // Garis sungai HANYA ditampilkan jika ada sungai yang dipilih (selRiver !== null)
+    const hasRiver = !!selRiver;
+
+    setVis("gee-tile-2010", showGeeTiles && show2010 && hasRiver);
+    setVis("gee-tile-2020", showGeeTiles && show2020 && hasRiver);
+    setVis("gee-tile-change", showGeeTiles && showZn && hasRiver);
 
     for (const id of ALL_BASE_LAYERS) setVis(id, BASE_LAYERS[baseMap].includes(id));
-  }, [showGeeTiles, showGee2010, showGee2020, showGeeChange, yearMode, baseMap, setVis]);
+  }, [showGeeTiles, showGee2010, showGee2020, showGeeChange, yearMode, baseMap, selRiver, setVis]);
 
   useEffect(() => {
     if (ready) syncVisibility();
   }, [ready, syncVisibility]);
+
+  // Muat tile GEE spesifik per sungai saat sungai dipilih
+  const loadRiverTiles = useCallback(async (river: River) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    try {
+      const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      const queryBackend = urlParams?.get("backend");
+      const storedBackend = typeof window !== "undefined" ? localStorage.getItem("INARIVERS_BACKEND_URL") : null;
+      const isLocalhost = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+      const defaultBackend = isLocalhost ? "http://localhost:8080" : "https://riverbe.vercel.app";
+      const apiBase = (queryBackend || storedBackend || import.meta.env.VITE_API_URL || defaultBackend).replace(/\/$/, "");
+
+      let riverData: any = null;
+      try {
+        const res = await fetch(`${apiBase}/api/tiles?river=${river.id}`);
+        if (res.ok) {
+          riverData = await res.json();
+        }
+      } catch (err) {
+        console.warn("[INARivers] Gagal memanggil endpoint per-sungai, menggunakan fallback lokal:", err);
+      }
+
+      if (!riverData || !riverData.tile2010) {
+        try {
+          const resLocal = await fetch("/gee_tiles_rivers.json");
+          if (resLocal.ok) {
+            const allRivers = await resLocal.json();
+            riverData = allRivers[river.id];
+          }
+        } catch (e) {
+          console.warn("[INARivers] Fallback gee_tiles_rivers gagal:", e);
+        }
+      }
+
+      if (riverData) {
+        const updateRaster = (srcId: string, layerId: string, tileUrl: string | undefined, opacity: number) => {
+          if (!tileUrl) return;
+          if (map.getLayer(layerId)) map.removeLayer(layerId);
+          if (map.getSource(srcId)) map.removeSource(srcId);
+
+          map.addSource(srcId, {
+            type: "raster",
+            tiles: [tileUrl],
+            tileSize: 256,
+            maxzoom: 18,
+          });
+
+          map.addLayer({
+            id: layerId,
+            type: "raster",
+            source: srcId,
+            paint: { "raster-opacity": opacity },
+          });
+        };
+
+        if (riverData.tileChange) updateRaster("gee-src-change", "gee-tile-change", riverData.tileChange, geeOpacity * 0.85);
+        if (riverData.tile2010) updateRaster("gee-src-2010", "gee-tile-2010", riverData.tile2010, geeOpacity);
+        if (riverData.tile2020) updateRaster("gee-src-2020", "gee-tile-2020", riverData.tile2020, geeOpacity);
+
+        syncVisibility();
+      }
+    } catch (e) {
+      console.error("[INARivers] Gagal memuat data garis sungai:", e);
+    }
+  }, [geeOpacity, syncVisibility]);
+
+  useEffect(() => {
+    if (ready) {
+      if (selRiver) {
+        loadRiverTiles(selRiver);
+      } else {
+        syncVisibility();
+      }
+    }
+  }, [selRiver, ready, loadRiverTiles, syncVisibility]);
 
   // Efek perubahan opasitas GEE tiles
   useEffect(() => {
@@ -173,8 +253,8 @@ export default function App() {
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: buildStyle(baseRef.current),
-      center: [109.85, -0.05],
-      zoom: 10.5,
+      center: [118.0, -2.5],
+      zoom: 4.8,
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
