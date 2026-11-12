@@ -14,6 +14,18 @@ import { DashboardView } from "./components/dashboard/DashboardView";
 import { MapView } from "./components/map/MapView";
 import { AssetStatusModal } from "./components/common/AssetStatusModal";
 
+/** Ponsel potret → sidebar tampil sebagai bottom-sheet (harus sama dengan breakpoint di App.css) */
+const MOBILE_QUERY = "(max-width: 768px) and (min-height: 501px)";
+const isMobileLayout = () =>
+  typeof window !== "undefined" && window.matchMedia(MOBILE_QUERY).matches;
+
+/** Padding fitBounds: di ponsel ruang kosong ada di atas (TimeBar) dan bawah (sheet), bukan kiri. */
+function mapPadding(sidebarOpen: boolean, desktop: maplibregl.PaddingOptions): maplibregl.PaddingOptions {
+  if (!isMobileLayout()) return desktop;
+  const sheet = Math.min(window.innerHeight * 0.46, 460);
+  return { top: 130, bottom: sidebarOpen ? Math.round(sheet) + 30 : 90, left: 30, right: 30 };
+}
+
 export default function App() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -34,7 +46,8 @@ export default function App() {
   const [selIsland, setSelIsland] = useState("Semua");
   const [selRiver, setSelRiver] = useState<River | null>(null);
   const [tab, setTab] = useState<SidebarTab>("detail");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Di ponsel panel dimulai tertutup agar peta langsung terlihat
+  const [sidebarOpen, setSidebarOpen] = useState(() => !isMobileLayout());
 
   const [showGeeTiles, setShowGeeTiles] = useState(true);
   const [showGee2010, setShowGee2010] = useState(true);
@@ -78,7 +91,7 @@ export default function App() {
     (river: River) => {
       const map = mapRef.current;
       if (!map) return;
-      const padding = { top: 80, bottom: 100, right: 60, left: sidebarOpen ? 360 : 60 };
+      const padding = mapPadding(sidebarOpen, { top: 80, bottom: 100, right: 60, left: sidebarOpen ? 360 : 60 });
       if (river.bounds) map.fitBounds(river.bounds, { padding, maxZoom: 13, duration: 1500 });
       else map.flyTo({ center: river.center, zoom: river.zoom || 11, duration: 1500 });
     },
@@ -333,7 +346,7 @@ export default function App() {
           setSearchQ("");
           setTab("rivers");
           mapRef.current?.fitBounds([[94.5, -11.5], [141.5, 6.5]], {
-            padding: { top: 60, bottom: 80, right: 40, left: sidebarOpen ? 360 : 40 },
+            padding: mapPadding(sidebarOpen, { top: 60, bottom: 80, right: 40, left: sidebarOpen ? 360 : 40 }),
             duration: 1200,
           });
         }}

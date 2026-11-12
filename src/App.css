@@ -124,7 +124,7 @@ button:focus-visible, input:focus-visible, label:focus-within, [tabindex]:focus-
 .btn.hero-btn-primary.compact { height: 40px; padding: 0 18px; font-size: 13.5px; border-radius: 12px; }
 
 /* ============ HALAMAN PETA ============ */
-.app-root { width: 100%; height: 100vh; position: relative; overflow: hidden; background: var(--bg); }
+.app-root { width: 100%; height: 100vh; height: 100dvh; position: relative; overflow: hidden; background: var(--bg); }
 .map-container { position: absolute; inset: 52px 0 0 0; }
 .maplibregl-canvas { outline: none; }
 
@@ -446,6 +446,7 @@ button:focus-visible, input:focus-visible, label:focus-within, [tabindex]:focus-
 .dash {
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   /* "clip" (bukan hidden) supaya header sticky tetap bekerja & tidak muncul scroll horizontal */
   overflow-x: clip;
   background: #060a12;
@@ -1034,7 +1035,35 @@ button:focus-visible, input:focus-visible, label:focus-within, [tabindex]:focus-
   display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
 }
 
-/* ============ RESPONSIF ============ */
+/* ============================================================
+ * RESPONSIF
+ * Breakpoint: 1600+ (layar lebar) · 1180 · 1100 · 1024 (tablet)
+ *             900 · 768 (ponsel/tablet kecil) · 640 · 480 · 360
+ * "Mode ponsel peta" = lebar ≤768 DAN tinggi >500 (potret).
+ * Ponsel landscape (tinggi ≤500) memakai panel samping.
+ * ============================================================ */
+
+/* ---------- Layar lebar ---------- */
+@media (min-width: 1600px) {
+  .dash-inner, .dash-nav-in { max-width: 1360px; }
+  .hero h1 { font-size: 68px; }
+  .hero p { font-size: 18px; max-width: 600px; }
+}
+
+/* Legenda naik sedikit agar tidak menabrak TimeBar di layar menengah */
+@media (max-width: 1180px) and (min-width: 769px) { .legend { bottom: 84px; } }
+/* Layar pendek (ponsel landscape): legenda disembunyikan */
+@media (max-height: 500px) { .legend { display: none; } }
+
+/* ---------- Topbar peta: mengecil bertahap ---------- */
+@media (max-width: 1180px) { .brand-sub { display: none; } }
+@media (max-width: 1100px) {
+  /* status jadi titik saja (teks disembunyikan) */
+  .status { font-size: 0; gap: 0; padding: 0 9px; }
+}
+@media (max-width: 900px) { .basemap-seg { display: none; } }
+
+/* ---------- Tablet (≤1024) ---------- */
 @media (max-width: 1024px) {
   .hero { grid-template-columns: 1fr; gap: 44px; padding-top: 48px; }
   .hv { max-width: 520px; margin: 0 auto; }
@@ -1043,7 +1072,10 @@ button:focus-visible, input:focus-visible, label:focus-within, [tabindex]:focus-
   .dash-grid2 { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ---------- Ponsel & tablet kecil (≤768) ---------- */
 @media (max-width: 768px) {
+  /* dashboard */
   .dash-tagline-chip { display: none; }
   .featured-rivers-grid { grid-template-columns: 1fr; }
   .featured-river-card { min-height: 0; }
@@ -1052,7 +1084,65 @@ button:focus-visible, input:focus-visible, label:focus-within, [tabindex]:focus-
   .split-viewport { height: 320px; }
   .split-badge-2010, .split-badge-2020 { top: 12px; padding: 5px 10px; }
   .dash-block { margin-bottom: 64px; }
+  .ticker { margin-bottom: 48px; }
+
+  /* topbar peta */
+  .topbar { gap: 8px; padding: 0 10px; }
+  .btn-nav-action { display: none; }
+  .search { min-width: 0; max-width: none; }
+  .topbar-right { gap: 6px; }
 }
+
+/* ---------- Peta mode ponsel potret: sidebar jadi bottom-sheet ---------- */
+@media (max-width: 768px) and (min-height: 501px) {
+  .sidebar {
+    top: auto; left: 0; right: 0; bottom: 0; width: 100%;
+    height: 46vh; height: min(46dvh, 460px);
+    border-right: 0; border-top: 1px solid var(--glass-border);
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -18px 44px rgba(0, 0, 0, 0.5);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .sidebar::before {
+    content: ""; position: absolute; top: 7px; left: 50%; width: 40px; height: 4px;
+    border-radius: 4px; background: rgba(255, 255, 255, 0.24); transform: translateX(-50%);
+  }
+  .tabs { padding-top: 12px; overflow-x: auto; }
+  .tabs button { white-space: nowrap; }
+  .sb-toggle { top: auto; bottom: calc(18px + env(safe-area-inset-bottom)); left: 12px; }
+
+  /* kontrol bawaan peta naik di atas sheet */
+  .with-sb .maplibregl-ctrl-bottom-left,
+  .with-sb .maplibregl-ctrl-bottom-right { bottom: 46vh; bottom: min(46dvh, 460px); left: 0; }
+  .with-sb .maplibregl-ctrl-bottom-left { left: 0; }
+
+  /* TimeBar pindah ke atas peta, bisa digeser horizontal */
+  .time-bar, .with-sb .time-bar {
+    top: 62px; bottom: auto; left: 10px; right: 10px; transform: none;
+    max-width: none; overflow-x: auto; justify-content: flex-start;
+    scrollbar-width: none;
+  }
+  .time-bar::-webkit-scrollbar { display: none; }
+  .time-btn { flex: 0 0 auto; height: 36px; padding: 0 12px; }
+  .maplibregl-ctrl-top-right { top: 56px !important; }
+
+  /* legenda: tampil kecil saat panel tertutup, disembunyikan saat panel terbuka */
+  .legend { bottom: calc(18px + env(safe-area-inset-bottom)); right: 10px; padding: 10px 12px; min-width: 0; }
+  .leg-item { font-size: 11px; padding: 2px 0; }
+  .with-sb .legend { display: none; }
+}
+
+/* ---------- Ponsel landscape (pendek): panel samping lebih sempit ---------- */
+@media (max-width: 768px) and (max-height: 500px) {
+  .sidebar { width: 280px; }
+  .with-sb .maplibregl-ctrl-bottom-left { left: 280px; }
+  .with-sb .time-bar { left: calc(50% + 140px); }
+  .time-btn { height: 30px; padding: 0 10px; font-size: 11px; }
+  .legend { display: none; }
+  .tab-body { padding: 12px; }
+}
+
+/* ---------- Ponsel (≤640) ---------- */
 @media (max-width: 640px) {
   .dash-nav-in { padding: 0 16px; }
   .dash-inner { padding: 0 16px 40px; }
@@ -1060,6 +1150,81 @@ button:focus-visible, input:focus-visible, label:focus-within, [tabindex]:focus-
   .stats-grid { grid-template-columns: 1fr; }
   .hero-actions { flex-direction: column; width: 100%; align-items: stretch; }
   .btn.hero-btn-primary, .btn.hero-btn-secondary { width: 100%; justify-content: center; }
+  .btn.hero-btn-primary.compact { width: auto; }
   .dash-nav .btn-asset { display: none; }
   .hv-chip.src, .hv-chip.year { display: none; }
+  .topbar .btn-asset { display: none; }
+}
+
+/* ---------- Ponsel kecil (≤480) ---------- */
+@media (max-width: 480px) {
+  .dash-nav-in { height: 60px; }
+  .dash-nav .brand { gap: 9px; }
+  .dash-nav .brand-name { font-size: 18px; }
+  .dash-logo-icon { width: 32px; height: 32px; border-radius: 10px; }
+  .btn.hero-btn-primary.compact { height: 38px; padding: 0 14px; font-size: 12.5px; }
+
+  .hero-tag { max-width: 100%; font-size: 9.5px; letter-spacing: 0.04em; line-height: 1.5; border-radius: 16px; padding: 7px 12px; }
+  .hero h1 { font-size: 34px; }
+  .hero p { font-size: 15.5px; }
+  .metric-pill { width: 100%; justify-content: space-between; }
+  .hv { border-radius: 22px; }
+  .hv-chip { padding: 8px 10px; border-radius: 12px; }
+  .hv-chip-name { font-size: 13px; }
+  .hv-chip-val { font-size: 15px; }
+
+  .split-header, .split-footer { padding: 14px 16px; }
+  .split-presets { width: 100%; }
+  .split-preset-btn { flex: 1; padding: 7px 4px; }
+  .split-viewport { height: 270px; }
+  .split-handle { width: 42px; height: 42px; }
+  .split-footer .btn { width: 100%; }
+  .split-legend-group { gap: 8px 14px; }
+  .split-river-name { font-size: 14.5px; }
+  .split-coords { font-size: 10.5px; }
+
+  .section-header-row { margin-bottom: 20px; }
+  .section-desc { font-size: 14px; }
+  .layer-card, .card, .stat-card { padding: 20px; }
+  .featured-river-card { padding: 20px 18px 16px; }
+  .stat-val { font-size: 34px; }
+  .rank-row2 { gap: 10px; padding: 10px 8px; }
+  .rank-rate { min-width: 66px; font-size: 12px; }
+  .card-head { flex-direction: column; }
+  .cta-card { padding: 28px 20px; border-radius: 22px; }
+  .ticker-item { font-size: 11px; }
+  .dash-footer { flex-direction: column; align-items: flex-start; }
+
+  /* sidebar/peta */
+  .brand-name { font-size: 15px; }
+  .detail-head h2 { font-size: 22px; }
+}
+
+@media (max-width: 360px) {
+  .dash-nav .brand-name { display: none; }
+  .hero h1 { font-size: 30px; }
+  .topbar .brand-name { font-size: 14px; }
+}
+
+/* ---------- Layar sentuh: target tap lebih besar ---------- */
+@media (pointer: coarse) {
+  .btn { min-height: 40px; }
+  .btn.sm { min-height: 34px; }
+  .chip { height: 36px; padding: 0 14px; }
+  .tabs button { padding: 16px 14px; }
+  .seg button { height: 34px; }
+  .search { height: 42px; }
+  .icon-btn { padding: 8px 12px; }
+  .river-row { padding-top: 14px; padding-bottom: 14px; }
+  .toggle-row { padding: 15px 0; }
+  .dash-pill { padding: 9px 14px; }
+  .split-preset-btn { padding: 9px 12px; }
+}
+
+/* ---------- Tanpa hover (layar sentuh): matikan efek yang menempel ---------- */
+@media (hover: none) {
+  .featured-river-card:hover, .layer-card:hover, .stat-card:hover,
+  .rank-row2:hover, .metric-pill:hover, .insight-item:hover, .btn:hover { transform: none; }
+  .river-row:hover { padding-left: 16px; }
+  .featured-river-card::after, .layer-card::after, .stat-card::after, .card::after { display: none; }
 }
