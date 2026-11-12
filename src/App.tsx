@@ -45,7 +45,7 @@ export default function App() {
   const [searchQ, setSearchQ] = useState("");
   const [selIsland, setSelIsland] = useState("Semua");
   const [selRiver, setSelRiver] = useState<River | null>(null);
-  const [tab, setTab] = useState<SidebarTab>("detail");
+  const [tab, setTab] = useState<SidebarTab>("rivers");
   // Di ponsel panel dimulai tertutup agar peta langsung terlihat
   const [sidebarOpen, setSidebarOpen] = useState(() => !isMobileLayout());
 
@@ -253,8 +253,10 @@ export default function App() {
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: buildStyle(baseRef.current),
-      center: [118.0, -2.5],
-      zoom: 4.8,
+      bounds: [[94.5, -11.5], [141.5, 6.5]],
+      fitBoundsOptions: {
+        padding: mapPadding(sidebarOpen, { top: 60, bottom: 80, right: 40, left: sidebarOpen ? 360 : 40 }),
+      },
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
@@ -390,11 +392,17 @@ export default function App() {
     return (
       <>
         <DashboardView
-          onOpenMap={() => setPage("map")}
+          onOpenMap={() => {
+            setSelRiver(null);
+            pendingFly.current = null;
+            setTab("rivers");
+            setPage("map");
+          }}
           onSelectRiver={(r) => {
             setSelRiver(r);
             setTab("detail");
             pendingFly.current = r;
+            setPage("map");
           }}
           onSelectYearMode={(mode) => setYearMode(mode)}
           onShowAssetModal={() => setShowAssetModal(true)}
