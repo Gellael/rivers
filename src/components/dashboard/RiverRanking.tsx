@@ -1,6 +1,6 @@
 import React from "react";
 import type { River } from "../../types";
-import { COLORS, ISLANDS, RIVERS, fmtRate } from "../../constants";
+import { ISLANDS, RIVERS, fmtRate } from "../../constants";
 
 interface RiverRankingProps {
   dashIsland: string;
@@ -8,72 +8,47 @@ interface RiverRankingProps {
   onSelectRiver: (river: River) => void;
 }
 
-export const RiverRanking: React.FC<RiverRankingProps> = ({
-  dashIsland,
-  onSelectIsland,
-  onSelectRiver,
-}) => {
-  const dashFilteredRivers = dashIsland === "Semua" ? RIVERS : RIVERS.filter((r) => r.island === dashIsland);
-  const ranked = [...dashFilteredRivers].sort((a, b) => Math.abs(b.avgRate) - Math.abs(a.avgRate)).slice(0, 8);
+export const RiverRanking: React.FC<RiverRankingProps> = ({ dashIsland, onSelectIsland, onSelectRiver }) => {
+  const pool = dashIsland === "Semua" ? RIVERS : RIVERS.filter((r) => r.island === dashIsland);
+  const ranked = [...pool].sort((a, b) => Math.abs(b.avgRate) - Math.abs(a.avgRate)).slice(0, 8);
   const maxAbs = Math.max(...ranked.map((r) => Math.abs(r.avgRate)), 0.01);
 
-  const MiniBar = ({ rate, max }: { rate: number; max: number }) => {
-    const pct = (Math.abs(rate) / max) * 100;
-    const isEro = rate > 0;
-    return (
-      <div style={{ height: "5px", borderRadius: "3px", background: "rgba(255,255,255,0.06)", overflow: "hidden", flex: 1, marginTop: "4px" }}>
-        <div
-          style={{
-            width: `${pct}%`,
-            height: "100%",
-            borderRadius: "3px",
-            background: isEro ? `linear-gradient(90deg, ${COLORS.erosi}, #ff8fa3)` : `linear-gradient(90deg, ${COLORS.akresi}, #67e8f9)`,
-            transition: "width 0.6s ease",
-          }}
-        />
-      </div>
-    );
-  };
-
   return (
-    <section className="card">
-      <div className="card-head">
-        <div>
-          <h2>Peringkat Laju Pergeseran Sungai</h2>
-          <div style={{ fontSize: "12px", color: "#64748b" }}>Pilih pulau dan klik nama sungai untuk langsung memperbesar peta</div>
-        </div>
-        <span className="card-badge">{ranked.length} Sungai</span>
+    <section>
+      <div className="panel-head">
+        <h2 className="panel-title">Peringkat laju pergeseran</h2>
+        <p className="panel-sub">Menampilkan {ranked.length} sungai dengan pergeseran terbesar. Klik nama sungai untuk memperbesar peta.</p>
       </div>
 
-      <div className="dash-pills">
+      <div className="pills" role="group" aria-label="Filter pulau">
         {ISLANDS.map((isl) => (
-          <button
-            key={isl}
-            className={`dash-pill ${dashIsland === isl ? "active" : ""}`}
-            onClick={() => onSelectIsland(isl)}
-          >
-            {isl} {isl === "Semua" ? `(${RIVERS.length})` : `(${RIVERS.filter((r) => r.island === isl).length})`}
+          <button key={isl} type="button" className="pill" aria-pressed={dashIsland === isl} onClick={() => onSelectIsland(isl)}>
+            {isl}
+            <small>{isl === "Semua" ? RIVERS.length : RIVERS.filter((r) => r.island === isl).length}</small>
           </button>
         ))}
       </div>
 
-      <div className="ranking-list">
-        {ranked.map((r, i) => (
-          <button
-            key={r.id}
-            className="rank-row2"
-            onClick={() => onSelectRiver(r)}
-          >
-            <span className="rank-num">{i + 1}</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="rank-name">{r.name}</div>
-              <div className="rank-meta">{r.province} · {r.island}</div>
-              <MiniBar rate={r.avgRate} max={maxAbs} />
-            </div>
-            <span className={`rank-rate ${r.avgRate > 0 ? "ero" : "akr"}`}>{fmtRate(r.avgRate)}</span>
-          </button>
-        ))}
-      </div>
+      <ol className="rank-list">
+        {ranked.map((r, i) => {
+          const kind = r.avgRate > 0 ? "ero" : "akr";
+          return (
+            <li key={r.id}>
+              <button type="button" className="rank-row" onClick={() => onSelectRiver(r)}>
+                <span className="rank-n ds-num">{i + 1}</span>
+                <span>
+                  <span className="rank-name" style={{ display: "block" }}>{r.name}</span>
+                  <span className="rank-meta" style={{ display: "block" }}>{r.province}, {r.island}</span>
+                </span>
+                <span className={`rank-val ds-num ${kind}`}>{fmtRate(r.avgRate)}</span>
+                <span className="rank-bar" aria-hidden="true">
+                  <i className={kind} style={{ display: "block", width: `${(Math.abs(r.avgRate) / maxAbs) * 100}%` }} />
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
     </section>
   );
 };
