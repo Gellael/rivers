@@ -19,6 +19,11 @@ export function fmtRate(v: number): string {
 export const esriTiles = (service: string): string =>
   `https://server.arcgisonline.com/ArcGIS/rest/services/${service}/MapServer/tile/{z}/{y}/{x}`;
 
+export const GEE_LANDSAT_TILES = {
+  sat2010: "https://earthengine.googleapis.com/v1/projects/project-gis-494114/maps/7dbb4701b7dfcea22f5dd7959d0306e6-375cb7daa7aa336bec811808e17685e4/tiles/{z}/{x}/{y}",
+  sat2020: "https://earthengine.googleapis.com/v1/projects/project-gis-494114/maps/2f425a7eae1629cb7e5260fbeb5ef653-c364961939432a3875cca4be7226eea8/tiles/{z}/{x}/{y}",
+};
+
 export const BASE_LAYERS: Record<BaseMap, string[]> = {
   "sat-2010": ["base-sat", "base-sat-2010"],
   "sat-2020": ["base-sat", "base-sat-2020"],
@@ -69,16 +74,16 @@ export function buildStyle(base: BaseMap): any {
       },
       "base-sat-2010": {
         type: "raster",
-        tiles: [esriTiles("World_Imagery")],
+        tiles: [GEE_LANDSAT_TILES.sat2010],
         tileSize: 256,
-        maxzoom: 17,
+        maxzoom: 18,
         attribution: "Google Earth Engine · Landsat 2010 True Color",
       },
       "base-sat-2020": {
         type: "raster",
-        tiles: [esriTiles("World_Imagery")],
+        tiles: [GEE_LANDSAT_TILES.sat2020],
         tileSize: 256,
-        maxzoom: 17,
+        maxzoom: 18,
         attribution: "Google Earth Engine · Landsat 8 2020 True Color",
       },
     },

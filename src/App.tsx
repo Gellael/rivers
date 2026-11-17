@@ -329,41 +329,24 @@ export default function App() {
 
         setWarnings([]);
 
-        // Base Satelit Historis 2010
+        // Sinkronisasi tile satelit Landsat jika ada update dari backend
         if (tiles?.tileSat2010 && map.getSource("base-sat-2010")) {
           try {
-            const isVis = baseRef.current === "sat-2010" ? "visible" : "none";
-            if (map.getLayer("base-sat-2010")) map.removeLayer("base-sat-2010");
-            map.removeSource("base-sat-2010");
-            map.addSource("base-sat-2010", {
-              type: "raster",
-              tiles: [tiles.tileSat2010],
-              tileSize: 256,
-              maxzoom: 18,
-              attribution: "Google Earth Engine · Landsat 2010 True Color",
-            });
-            const firstOverlayId = map.getStyle().layers?.find((l) => !l.id.startsWith("base-"))?.id;
-            map.addLayer({ id: "base-sat-2010", type: "raster", source: "base-sat-2010", layout: { visibility: isVis } }, firstOverlayId);
+            const src = map.getSource("base-sat-2010") as any;
+            if (src && typeof src.setTiles === "function") {
+              src.setTiles([tiles.tileSat2010]);
+            }
           } catch (e) {
             console.warn(e);
           }
         }
 
-        // Base Satelit Historis 2020
         if (tiles?.tileSat2020 && map.getSource("base-sat-2020")) {
           try {
-            const isVis = baseRef.current === "sat-2020" ? "visible" : "none";
-            if (map.getLayer("base-sat-2020")) map.removeLayer("base-sat-2020");
-            map.removeSource("base-sat-2020");
-            map.addSource("base-sat-2020", {
-              type: "raster",
-              tiles: [tiles.tileSat2020],
-              tileSize: 256,
-              maxzoom: 18,
-              attribution: "Google Earth Engine · Landsat 8 2020 True Color",
-            });
-            const firstOverlayId = map.getStyle().layers?.find((l) => !l.id.startsWith("base-"))?.id;
-            map.addLayer({ id: "base-sat-2020", type: "raster", source: "base-sat-2020", layout: { visibility: isVis } }, firstOverlayId);
+            const src = map.getSource("base-sat-2020") as any;
+            if (src && typeof src.setTiles === "function") {
+              src.setTiles([tiles.tileSat2020]);
+            }
           } catch (e) {
             console.warn(e);
           }
