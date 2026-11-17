@@ -20,8 +20,8 @@ export const esriTiles = (service: string): string =>
   `https://server.arcgisonline.com/ArcGIS/rest/services/${service}/MapServer/tile/{z}/{y}/{x}`;
 
 export const BASE_LAYERS: Record<BaseMap, string[]> = {
-  "sat-2010": ["base-sat-2010"],
-  "sat-2020": ["base-sat-2020"],
+  "sat-2010": ["base-sat", "base-sat-2010"],
+  "sat-2020": ["base-sat", "base-sat-2020"],
   sat: ["base-sat"],
   dark: ["base-dark", "base-dark-ref"],
   light: ["base-light"],

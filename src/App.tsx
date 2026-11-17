@@ -342,8 +342,8 @@ export default function App() {
               maxzoom: 18,
               attribution: "Google Earth Engine · Landsat 2010 True Color",
             });
-            const firstId = map.getStyle().layers?.[0]?.id;
-            map.addLayer({ id: "base-sat-2010", type: "raster", source: "base-sat-2010", layout: { visibility: isVis } }, firstId);
+            const firstOverlayId = map.getStyle().layers?.find((l) => !l.id.startsWith("base-"))?.id;
+            map.addLayer({ id: "base-sat-2010", type: "raster", source: "base-sat-2010", layout: { visibility: isVis } }, firstOverlayId);
           } catch (e) {
             console.warn(e);
           }
@@ -362,8 +362,8 @@ export default function App() {
               maxzoom: 18,
               attribution: "Google Earth Engine · Landsat 8 2020 True Color",
             });
-            const firstId = map.getStyle().layers?.[0]?.id;
-            map.addLayer({ id: "base-sat-2020", type: "raster", source: "base-sat-2020", layout: { visibility: isVis } }, firstId);
+            const firstOverlayId = map.getStyle().layers?.find((l) => !l.id.startsWith("base-"))?.id;
+            map.addLayer({ id: "base-sat-2020", type: "raster", source: "base-sat-2020", layout: { visibility: isVis } }, firstOverlayId);
           } catch (e) {
             console.warn(e);
           }
