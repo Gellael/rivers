@@ -198,6 +198,8 @@ export default function App() {
         if (riverData.tile2020) updateRaster("gee-src-2020", "gee-tile-2020", riverData.tile2020, geeOpacity);
 
         syncVisibility();
+        setDataStatus("ok");
+        setWarnings([]);
       }
     } catch (e) {
       console.error("[INARivers] Gagal memuat data garis sungai:", e);
@@ -210,6 +212,8 @@ export default function App() {
         loadRiverTiles(selRiver);
       } else {
         syncVisibility();
+        setDataStatus("ok");
+        setWarnings([]);
       }
     }
   }, [selRiver, ready, loadRiverTiles, syncVisibility]);
@@ -290,12 +294,28 @@ export default function App() {
           const apiRes = await fetch(`${apiBase}/api/tiles`);
           if (apiRes.ok) {
             const data = await apiRes.json();
-            if (data?.tile2010 || data?.tiles?.tile2010) {
+            if (data?.status === "ready" || data?.tileSat2010 || data?.tile2010 || data?.tiles) {
               tiles = data?.tiles || data;
             }
           }
         } catch (fetchErr) {
-          console.warn("[INARivers] Gagal memanggil API backend:", fetchErr);
+          console.warn("[INARivers] Gagal memanggil API backend, mencoba fallback lokal:", fetchErr);
+        }
+
+        // Fallback otomatis ke /gee_tiles.json lokal di frontend
+        if (!tiles) {
+          try {
+            const localRes = await fetch("/gee_tiles.json");
+            if (localRes.ok) {
+              const localData = await localRes.json();
+              if (localData?.status === "ready" || localData?.tileSat2010 || localData?.tile2010) {
+                tiles = localData;
+                console.log("[INARivers] Menggunakan konfigurasi tile lokal (fallback)");
+              }
+            }
+          } catch (e) {
+            console.warn("[INARivers] Fallback lokal gagal:", e);
+          }
         }
 
         if (!tiles) {
@@ -306,6 +326,8 @@ export default function App() {
           setReady(true);
           return;
         }
+
+        setWarnings([]);
 
         // Base Satelit Historis 2010
         if (tiles?.tileSat2010 && map.getSource("base-sat-2010")) {
