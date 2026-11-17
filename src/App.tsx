@@ -46,7 +46,6 @@ export default function App() {
   const [selIsland, setSelIsland] = useState("Semua");
   const [selRiver, setSelRiver] = useState<River | null>(null);
   const [tab, setTab] = useState<SidebarTab>("rivers");
-  // Di ponsel panel dimulai tertutup agar peta langsung terlihat
   const [sidebarOpen, setSidebarOpen] = useState(() => !isMobileLayout());
 
   const [showGeeTiles, setShowGeeTiles] = useState(true);
